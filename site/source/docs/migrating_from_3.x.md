@@ -83,25 +83,144 @@ However, we did introduce some small breaking changes. We removed:
 
 ## Updating to v5
 
-Summary:
-- Contract config
-  - Removed the deployment section (now all part of blockchain config)
-  - `contracts` renamed `deploy` to match `beforeDeploy` and `afterDeploy` and for tests
-- Blockchain config
-  - A lot of new defaults, so less that you need to configure [Source](/docs/blockchain_configuration.html#Common-Parameters)
-  - A lot of renamed parameters
-    - isDev: `miningMode: 'dev'`
-    - mineWhenNeeded: `miningMode: 'auto'`
-    - ethereumClientName: `client`
-  - New `endpoint` parameter that let's you connect to an external endpoint or configure more easily which local endpoint to start [Source](/docs/blockchain_configuration.html#Parameter-descriptions)
-  - Now is the only source for accounts [Source](/docs/blockchain_accounts_configuration.html)
-- Tests
-  - Can now configure module configuration
-    - Storage, namesystem (ENS) and communication modules can now be configured 
-      - Configure them just like in the configuration files
-      - Tests default to the `test` environment
-      - Modules are turned off by default
-      - Config merges with `test` and `default` so no need to rewrite all the provider configs
-  - `deployement` section removed
-    - You can now configure the accounts and the endpoint in the `blockchain` section
-  - `contracts` renamed `deploy` and put inside the `contracts` section
+Embark's 5th version is full of improvements, especially in the configurations, all to make your life easier.
+
+In this guide, we'll go through the different breaking changes introduced in Embark 5, that will let you upgrade from Embark 4.0. If you want to also know what new features come with Embark 5, go read our relase article here (TODO add link here).
+
+### Contract configs
+
+One of the two configs that changed the most in the contract configuration. The goal of this change is to make this file **only** about contracts. That way, no more confusing connection values and accounts. Those were moved to the blockchain config and will be discussed [just below](/docs/migrating_from_3.x.html#Blockchain-config).
+
+1. The `deployment` section was removed
+    - It was moved to the blockchain config as `endpoint`, which is way simpler than before
+    - The accounts were also moved to the blockchain config
+2. `contracts` has been renamed to `deploy`
+    - The goal is to match the rest of the properties, ie `afterDeploy` and `beforeDeploy`
+    - And also enables us to add a new features for test, where you can modify the blockchain and module configs in each test. Read more on it [here](/docs/migrating_from_3.x.html#Tests)
+3. New `dappConnection` magic key word: `$EMBARK`
+    - This tells the Dapp to connect to Embark's proxy and node
+        - Doing so let's you use the same accounts for deployment **and** in the Dapp
+            - Plus, it let's you benefit from a couple of other features inside your Dapp
+    - We recommend putting `$EMBARK` first in the `dappConnection` array in development, as it's the easiest way to develop your Dapp
+    
+
+### Blockchain config
+
+The blockchain configuration changed a lot, but in a good way, as it's **way** simpler now. Hopefully, with all those changes, you'll have an easier time understanding how the different configurations work.
+
+1. Defaults everywhere!
+    - Most of the configs you were used to have in Embark 4 are now put as defaults in Embark
+        - That means you don't have to specify them
+        - You can find the basic configurations [here](/docs/blockchain_configuration.html#Common-Parameters)
+        - If you want to modify some of the advanced parameters, you always can. Just put them in the `clientConfig` object. You can see all the options [here](/docs/blockchain_configuration.html#Advanced-parameters) 
+2. There were a couple of renamed parameters:
+    - `isDev` => `miningMode: 'dev'`
+        - This enables you to control the node's mining mode with only one option, instead of two (`isDev` and `mineWhenNeeded` were both removed)
+    - `mineWhenNeeded` => `miningMode: 'auto'`
+        - As said above, we mixed the two option into `mininMode`
+        - `auto` is the same as `mineWhenNeeded: true`
+    - `ethereumClientName` => `client`
+        - Just a basic rename, because it's shorter and is more agnostic
+3. New `endpoint` parameter
+    - This new parameter is the replacement of the contract config `deployment` section
+    - Before, you had to set `host`, `port` and `type` in the `deployement` section of the contracts config
+    - Now, all the options are in `endpoint`
+        - For example, you can just put `ws://localhost:1234` and Embark will connect to it
+        - If the connection doesn't work, Embark will start the node using the endpoint
+    - This makes it easier to connect to external nodes or change the local node configurations
+4. The blockchain config is now the **only** source of accounts
+    - In Embark 4, there were `account` arrays in both the contract and blockchain configs
+    - In Embark 5, only the blockchain `accounts` remain
+    - The accounts there will be used for contract deployment, node creation **and** in the Dapp
+        - Before you could see the accounts in your Dapp, but couldn't use them
+        - Now, you can fund them, use them and debug with them
+        - This is thanks to our new proxy
+            - All you have to do is set `$EMBARK` as the `dappConnection` in contract config to connect to Embark's proxy in your Dapp
+            
+Here is an example of how simple your blockchain config can look now:
+
+```javascript
+module.exports = {
+  default: {
+    enabled: true,
+    client: "geth"
+  },
+
+  development: {
+    endpoint: 'ws://locahost:1234',
+    clientConfig: {
+      miningMode: 'dev'
+    },
+    accounts: [
+      {
+        mnemonic: "12 word mnemonic",
+        balance: "5ether",
+        numAddresses: 10
+      }
+    ]
+  }
+}
+```
+
+This will connect to a node started on you machine on the port `1234`, using a Websocket provider. If the node is not started, Embark will start it for you using Geth.
+
+The accounts used for deployment will be the ones coming from a mnemonic, all funded with 5 ETH.
+
+You can even use those accounts in your Dapp to test your contract interactions with `$EMBARK` set in your `dappConnection`, in the contracts config.
+
+You could remove the `endpoint` and `accounts` and Embark would still work with its defaults.
+
+### Tests
+
+There were few breaking changes in the test, mostly new features.
+
+1. The `deployment` section was removed
+    - Much like the changes above, the `deployment` section is no more
+    - You can still connect to an extenral node in tests and use custom accounts, it's just simpler
+    - You can now add a `blockchain` section in the `config` function's object and use the `endpoint` and `accounts` options
+2. `contracts` was renamed `deploy`
+    - Again, the test configs match the actual configs
+    - You now have the `contracts` section which represents the contracts config, so you need the `deploy` parameter for the contract list
+    - See the example below
+3. New module configs
+    - You can now configure the namesystem on a per test basis
+    - Storage, Namesystem and Communication modules are disabled by default to speed up the test
+        - You can enable them in your normal config files by adding the `test` environment and putting `enabled: true`
+            - Just like normal environments, the `test` environment merges with the `default` section
+            - All tests now default to the `test` environment, but you can still change this with `--environment`
+            
+Example of a test with the new configs:
+
+```javascript
+config({
+  blockchain: {
+    accounts: [
+      {
+        mnemonic: "12 word mnemonic",
+        balance: "5ether",
+        numAddresses: 10
+      }
+    ]
+  },
+  contracts: {
+    deploy: {
+      "SimpleStorage": {
+        args: [100]
+      }
+    }
+  },
+  namesystem: {
+    enabled: true,
+    register: {
+      "rootDomain": "test.eth"
+    }
+  }
+});
+```
+
+This example deploys one contract, SimpleStorage, using the first of 10 accounts, generated from the mnemonic, which will be funded to 5 ETH.
+
+There will also be the Namesystem enabled, with a root domain of `test.eth`, meaning you will be able, in your tests, to do `EmbarkJS.Names.resolve('test.eth')` and it will resolve to the owner of the name (the default account).
+
+Like before, those configs are all optional, but let you have more flexibility than before, with simpler config objects that are easier to understand.
+
