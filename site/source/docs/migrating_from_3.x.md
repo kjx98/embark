@@ -2,9 +2,9 @@ title: Migrating from Embark 3.x
 layout: docs
 ---
 
-With the release of version 4, Embark has introduced a few breaking changes that require developers to take action, if they plan to upgrade.
-
 In this guide we'll discuss the few steps to take a project from Embark 3.2.x to 4.x.
+
+If you already have 4.x, you can then upgrade to Embark 5 by continuing [below](/docs/migrating_from_3.x.html#Updating-to-v5).
 
 ## Upgrading to v4
 
@@ -216,6 +216,10 @@ config({
     }
   }
 });
+
+describe(() => {
+  // Tests here
+});
 ```
 
 This example deploys one contract, SimpleStorage, using the first of 10 accounts, generated from the mnemonic, which will be funded to 5 ETH.
@@ -224,3 +228,24 @@ The Namesystem will also be enabled, with a root domain of `test.eth`, meaning y
 
 Like before, those configs are all optional; but they allow you more flexibility, with simpler config objects that are easier to understand.
 
+### Library and Version updates
+
+#### NodeJS
+
+To upgrade to Embark 5, you will first need to install  Node.js version 10.17 or above, but not beyond 10.x for now.
+
+The reason for that limit is because 12.x cause issues with some of the underlying Embark dependencies, which do not support Node 12.x yet.
+
+#### Version manager
+
+In Embark 4, you could select the version of a couple of libraries in `embark.json`'s `versions` object. As of Embark 5, only `solc` is available to modify.
+
+We deprecated the other libraries because they were rarely changed and most importantly, because their different versions had breaking changes that were annoying to support at the same time. With those deprecations, we ensure you the best experience possible when using the libraries offered.
+
+#### ipfs-api
+
+We upgraded from the old `ipfs-api` to `ipfs-http-client`, because the former was deprecated.
+
+For most of you, no change is required, since EmbarkJS handles the API changes.
+
+However, if you did import `ipfs-api` yourself in your front-end Dapp, you'll need to change it to `ipfs-http-client`, because `ipfs-api` is no longer installed as part of Embark 5.
