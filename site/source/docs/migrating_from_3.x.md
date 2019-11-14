@@ -71,7 +71,7 @@ Remove the following import from your application:
 import web3 from 'Embark/web3';
 ```
 
-### Updating blockchain configurations
+### Updating Blockchain configurations
 
 Embark 4 adds some new blockchain account configurations. To try to keep things as simple as possible, these additions are really similar to the ones in the Smart Contract configuration. For more information, please read the [Accounts Blockchain configuration guide](/docs/blockchain_accounts_configuration.html) in our docs.
 
@@ -87,26 +87,26 @@ Embark's 5th version is full of improvements, especially in the configurations, 
 
 In this guide, we'll go through the different breaking changes introduced in Embark 5, that will let you upgrade from Embark 4.0. If you want to also know what new features come with Embark 5, go read our relase article here (TODO add link here).
 
-### Contract configs
+### Better Smart Contract configuration
 
-One of the two configs that changed the most is the contract configuration. The goal of this change is to make this file **only** about contracts. That way, no more confusing connection values and accounts. Those were moved to the blockchain config and will be discussed [just below](/docs/migrating_from_3.x.html#Blockchain-config).
+One of the two configurations that changed the most is the Smart Contract configuration. The goal of this change is to make this file **only** about Smart Contracts. That way, no more confusing connection values and accounts. Those were moved to the blockchain config and will be discussed [just below](/docs/migrating_from_3.x.html#Blockchain-config).
 
 1. The `deployment` section was removed
-    - It was moved to the blockchain config as `endpoint`, which is way simpler than before
-    - The accounts were also moved to the blockchain config
+    - It was moved to the Blockchain configuration as `endpoint`, which is way simpler than before
+    - The accounts were also moved to the Blockchain configuration
 2. `contracts` has been renamed to `deploy`
     - The goal is to match the rest of the properties, i.e. `afterDeploy` and `beforeDeploy`
-    - And also enables us to add new features for `embark test`, whereby you can modify the blockchain and module configs in each test. Read more [here](/docs/migrating_from_3.x.html#Tests)
-3. New `dappConnection` magic key word: `$EMBARK`
+    - And also enables us to add new features for `embark test`, whereby you can modify the Blockchain and module configs in each test. Read more [here](/docs/migrating_from_3.x.html#Tests)
+3. New `dappConnection` variable: `$EMBARK`
     - This tells the Dapp to connect to Embark's proxy and node
         - Doing so let's you use the same accounts for deployment **and** in the Dapp
             - Plus, it let's you benefit from a couple of other features inside your Dapp
     - We recommend putting `$EMBARK` first in the `dappConnection` array in development, as it's the easiest way to develop your Dapp
     
 
-### Blockchain config
+### Simplified Blockchain configuration
 
-The blockchain configuration changed a lot, but in a good way, as it's **way** simpler now. Hopefully, with all those changes, you'll have an easier time understanding how the different configurations work.
+The Blockchain configuration changed a lot, but in a good way, as it's **way** simpler now. Hopefully, with all those changes, you'll have an easier time understanding how the different configurations work.
 
 1. Defaults everywhere!
     - Most of the configs you were used to seeing in Embark 4 are simply defaults in Embark 5
@@ -122,22 +122,22 @@ The blockchain configuration changed a lot, but in a good way, as it's **way** s
     - `ethereumClientName` => `client`
         - Just a basic rename, because it's shorter and is more agnostic
 3. New `endpoint` parameter
-    - This new parameter is the replacement for the contract config's `deployment` section
-    - Before, you had to set `host`, `port` and `type` in the `deployement` section of the contracts config
+    - This new parameter is the replacement for the Smart Contract configuration's `deployment` section
+    - Before, you had to set `host`, `port` and `type` in the `deployement` section of the Smart Contracts configuration
     - Now, all the options are in `endpoint`
         - For example, you can just put `ws://localhost:1234` and Embark will connect to it
         - If the connection doesn't work, Embark will start the node using the endpoint
     - This makes it easier to connect to external nodes or change the local node configurations
-4. The blockchain config is now the **only** source of accounts
-    - In Embark 4, there were `account` arrays in both the contract and blockchain configs
+4. The Blockchain configuration is now the **only** source of accounts
+    - In Embark 4, there were `account` arrays in both the Smart Contract and Blockchain configs
     - In Embark 5, there is only a blockchain `accounts` array
-    - The accounts there will be used for contract deployment, node creation **and** in the Dapp
+    - The accounts there will be used for Smart Contract deployment, node creation **and** in the Dapp
         - Before you could see the accounts in your Dapp, but couldn't use them
         - Now, you can fund them, use them and debug with them
         - This is thanks to our new proxy
-            - All you have to do is set `$EMBARK` as the `dappConnection` in contracts config to connect to Embark's proxy in your Dapp
+            - All you have to do is set `$EMBARK` as the `dappConnection` in Smart Contracts configuration to connect to Embark's proxy in your Dapp
             
-Here is an example of how simple your blockchain config can look now:
+Here is an example of how simple your Blockchain configuration can look now:
 
 ```javascript
 module.exports = {
@@ -166,7 +166,7 @@ This will connect to a node started on you machine on the port `1234`, using a W
 
 The accounts used for deployment will be the ones coming from a mnemonic, all funded with 5 ETH.
 
-You can even use those accounts in your Dapp to test contract interactions, if `$EMBARK` is set in `dappConnection` in your contracts config.
+You can even use those accounts in your Dapp to test Smart Contract interactions, if `$EMBARK` is set in `dappConnection` in your Smart Contracts configuration.
 
 You could remove the `endpoint` and `accounts` and Embark would still work with its defaults.
 
@@ -180,12 +180,12 @@ There were few breaking changes related to `embark test`, mostly new features.
     - You can now add a `blockchain` section in the `config` function's object and use the `endpoint` and `accounts` options
 2. `contracts` was renamed `deploy`
     - Again, the test configs match the actual configs
-    - You now have the `contracts` section which represents the contracts config, so you need the `deploy` parameter for the contract list
+    - You now have the `contracts` section which represents the Smart Contract configuration, so you need the `deploy` parameter for the Smart Contract list
     - See the example below
 3. New module configs
     - You can now configure the namesystem on a per test basis
     - Storage, Namesystem and Communication modules are disabled by default to speed up the test
-        - You can enable them in your normal config files by adding the `test` environment and putting `enabled: true`
+        - You can enable them in your normal configuration files by adding the `test` environment and putting `enabled: true`
             - Just like normal environments, the `test` environment merges with the `default` section
             - All tests now default to the `test` environment, but you can still change this with `--environment`
             
@@ -222,11 +222,11 @@ describe(() => {
 });
 ```
 
-This example deploys one contract, SimpleStorage, using the first of 10 accounts, generated from the mnemonic, which will be funded to 5 ETH.
+This example deploys one Smart Contract, SimpleStorage, using the first of 10 accounts, generated from the mnemonic, which will be funded to 5 ETH.
 
 The Namesystem will also be enabled, with a root domain of `test.eth`, meaning you will be able, in your tests, to do `EmbarkJS.Names.resolve('test.eth')` and it will resolve to the owner of the name (the default account).
 
-Like before, those configs are all optional; but they allow you more flexibility, with simpler config objects that are easier to understand.
+Like before, those configs are all optional; but they allow you more flexibility, with simpler configuration objects that are easier to understand.
 
 ### Library and Version updates
 
@@ -249,3 +249,5 @@ We upgraded from the old `ipfs-api` to `ipfs-http-client`, because the former wa
 For most of you, no change is required, since EmbarkJS handles the API changes.
 
 However, if you did import `ipfs-api` yourself in your front-end Dapp, you'll need to change it to `ipfs-http-client`, because `ipfs-api` is no longer installed as part of Embark 5.
+Also, if you'll be using it directly, be sure to review the [docs for `ipfs-http-client`](https://github.com/ipfs/js-ipfs-http-client#usage) as there have been some API changes relative to `ipfs-api`.
+
