@@ -170,6 +170,31 @@ You can even use those accounts in your Dapp to test Smart Contract interactions
 
 You could remove the `endpoint` and `accounts` and Embark would still work with its defaults.
 
+### Communication configuration
+
+This is a very simple change, but in Embark 5, a specific node is started when using a Communication service like Whisper.
+
+That means that if in your Communication configuration, you still point to the original port, it will conflict.
+
+All you have to do is change that port (usually `8546`) to something else, say `8557`.
+
+Here's what an updated Communication configuration would look like:
+
+```javascript
+module.exports = {
+  default: {
+    enabled: false,
+    provider: "whisper",
+    available_providers: ["whisper"],
+    connection: {
+      host: "localhost",
+      port: 8557,
+      type: "ws"
+    }
+  }
+}
+```
+
 ### Tests
 
 There were few breaking changes related to `embark test`, mostly new features.
