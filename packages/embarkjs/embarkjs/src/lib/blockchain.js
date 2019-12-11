@@ -3,6 +3,7 @@
 import {reduce} from './async';
 
 let Blockchain = {
+  Contract: Contract,
   list: [],
   done: false,
   err: null
@@ -224,7 +225,7 @@ Blockchain.execWhenReady = function(cb) {
   this.list.push(cb);
 };
 
-let Contract = function(options) {
+function Contract(options) {
   var self = this;
   var ContractClass;
 
@@ -355,8 +356,6 @@ Contract.prototype.send = function(value, unit, _options) {
 
   return this.blockchainConnector.send(options);
 };
-
-Blockchain.Contract = Contract;
 
 class BlockchainConnectionError extends Error {
   constructor(connectionErrors) {
