@@ -51,7 +51,7 @@
     "reboot": "npm run clean",
     "reboot:full": "npm run clean:full",
     "release": "node scripts/release",
-    "reset": "node scripts/monorun --stream reset && npm-run-all reset:top reset:tsbuildinfo",
+    "reset": "node scripts/monorun --stream reset && npm-run-all reset:*",
     "reset:top": "npx rimraf .tsconfig.collective.json .nyc_output coverage",
     "reset:tsbuildinfo": "npx lerna exec --parallel -- npx rimraf node_modules/.cache/tsc",
     "start": "node scripts/monorun --parallel start",

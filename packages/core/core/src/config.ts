@@ -706,7 +706,8 @@ export class Config {
       readFiles.push(new File({ path: file, originalPath: file, type: Types.dappFile, basedir, storageConfig }));
     });
 
-    const filesFromPlugins: any[] = [];
+    type _File = File & { intendedPath?: string, file?: string };
+    const filesFromPlugins: _File[] = [];
     const filePlugins = self.plugins.getPluginsFor('pipelineFiles');
     filePlugins.forEach((plugin: Plugin) => {
       try {
@@ -718,6 +719,7 @@ export class Config {
         self.logger.error(err.message);
       }
     });
+
     filesFromPlugins.filter(file => {
       if ((file.intendedPath && fileMatchesPattern(files, file.intendedPath)) || fileMatchesPattern(files, file.file)) {
         readFiles.push(file);

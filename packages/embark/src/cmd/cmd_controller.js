@@ -2,7 +2,7 @@ import { Config, Events, fs, TemplateGenerator } from 'embark-core';
 import { Engine } from 'embark-engine';
 import { __ } from 'embark-i18n';
 import { dappPath, embarkPath, joinPath, setUpEnv } from 'embark-utils';
-import { Logger, logLevels } from 'embark-logger';
+import { Logger, LogLevels } from 'embark-logger';
 let async = require('async');
 const constants = require('embark-core/constants');
 const { reset: embarkReset, paths: defaultResetPaths } = require('embark-reset');
@@ -29,7 +29,7 @@ class EmbarkController {
 
   initConfig(env, options) {
     this.events = new Events();
-    this.logger = new Logger({ logLevel: logLevels.debug, events: this.events, context: this.context });
+    this.logger = new Logger({ logLevel: LogLevels.debug, events: this.events, context: this.context });
     this.config = new Config({ env: env, logger: this.logger, events: this.events, context: this.context, version: this.version });
     this.config.loadConfigFiles(options);
     this.plugins = this.config.plugins;
@@ -742,7 +742,7 @@ class EmbarkController {
       version: this.version,
       embarkConfig: options.embarkConfig || 'embark.json',
       logFile: options.logFile,
-      logLevel: options.logLevel || logLevels.warn,
+      logLevel: options.logLevel || LogLevels.warn,
       context: this.context,
       useDashboard: false,
       webpackConfigName: options.webpackConfigName,

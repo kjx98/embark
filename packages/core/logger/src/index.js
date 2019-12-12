@@ -7,7 +7,7 @@ const util = require('util');
 const DATE_FORMAT = 'YYYY-MM-DD HH:mm:ss:SSS';
 const LOG_REGEX = new RegExp(/\[(\d\d\d\d-\d\d-\d\d \d\d:\d\d:\d\d:\d\d\d)\] (?:\[(\w*)\]:?)?\s?\s?(.*)/gmi);
 
-export const logLevels = {
+export const LogLevels = {
   error: 'error',
   warn: 'warn',
   info: 'info',
@@ -18,7 +18,7 @@ export const logLevels = {
 export class Logger {
   constructor(options) {
     this.events = options.events || {emit: function(){}};
-    this.logLevels = Object.keys(logLevels);
+    this.logLevels = Object.keys(LogLevels);
     this.logLevel = options.logLevel || 'info';
     this._logFunction = options.logFunction || console.log;
     this.logFunction = function() {
