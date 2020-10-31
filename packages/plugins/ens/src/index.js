@@ -66,30 +66,30 @@ class ENS {
     async.map(
       this.config.namesystemConfig.dappConnection || this.config.contractsConfig.dappConnection,
       (conn, next) => {
-      if (conn === '$EMBARK') {
-        return this.events.request('proxy:endpoint:get', next);
-      }
-      next(null, conn);
-    }, (err, connections) => {
-      if (err) {
-        return done(err);
-      }
-      done(null, {
-        env: this.env,
-        registration: this.config.namesystemConfig.register,
-        registryAbi: this.ensConfig.ENSRegistry.abiDefinition,
-        registryAddress: this.ensConfig.ENSRegistry.deployedAddress,
-        registrarAbi: this.ensConfig.FIFSRegistrar.abiDefinition,
-        registrarAddress: this.ensConfig.FIFSRegistrar.deployedAddress,
-        resolverAbi: this.ensConfig.Resolver.abiDefinition,
-        resolverAddress: this.ensConfig.Resolver.deployedAddress,
-        dappConnection: connections
+        if (conn === '$EMBARK') {
+          return this.events.request('proxy:endpoint:get', next);
+        }
+        next(null, conn);
+      }, (err, connections) => {
+        if (err) {
+          return done(err);
+        }
+        done(null, {
+          env: this.env,
+          registration: this.config.namesystemConfig.register,
+          registryAbi: this.ensConfig.ENSRegistry.abiDefinition,
+          registryAddress: this.ensConfig.ENSRegistry.deployedAddress,
+          registrarAbi: this.ensConfig.FIFSRegistrar.abiDefinition,
+          registrarAddress: this.ensConfig.FIFSRegistrar.deployedAddress,
+          resolverAbi: this.ensConfig.Resolver.abiDefinition,
+          resolverAddress: this.ensConfig.Resolver.deployedAddress,
+          dappConnection: connections
+        });
       });
-    });
   }
 
   async init(cb = () => {}) {
-    if (this.initated || this.config.namesystemConfig === {} ||
+    if (this.initated ||
       this.config.namesystemConfig.enabled !== true ||
       !this.config.namesystemConfig.available_providers ||
       this.config.namesystemConfig.available_providers.indexOf('ens') < 0) {
@@ -110,6 +110,7 @@ class ENS {
       return;
     }
     this.actionsRegistered = true;
+    this.embark.registerActionForEvent("contracts:build:before", this.beforeContractBuild.bind(this));
     this.embark.registerActionForEvent("deployment:deployContracts:beforeAll", this.configureContractsAndRegister.bind(this));
     this.embark.registerActionForEvent('deployment:contract:beforeDeploy', this.modifyENSArguments.bind(this));
     this.embark.registerActionForEvent("deployment:deployContracts:afterAll", this.associateContractAddresses.bind(this));
@@ -140,6 +141,7 @@ class ENS {
         path: [this.config.embarkConfig.generationDir, 'config'],
         file: 'namesystem.json',
         format: 'json',
+        dappAutoEnable: this.config.contractsConfig.dappAutoEnable,
         content: Object.assign({}, this.embark.config.namesystemConfig, config)
       }, cb);
     });
@@ -179,20 +181,35 @@ class ENS {
   }
 
   async registerConfigDomains(config, cb) {
-    const defaultAccount = await this.web3DefaultAccount;
     if (!this.config.namesystemConfig.register) {
       return cb();
     }
+    const defaultAccount = await this.web3DefaultAccount;
+    const web3 = await this.web3;
 
     async.each(Object.keys(this.config.namesystemConfig.register.subdomains), (subDomainName, eachCb) => {
-      const address = this.config.namesystemConfig.register.subdomains[subDomainName];
+      let address = this.config.namesystemConfig.register.subdomains[subDomainName];
       const directivesRegExp = new RegExp(/\$(\w+\[?\d?\]?)/g);
 
-      const directives = directivesRegExp.exec(address);
-      if (directives && directives.length) {
-        return eachCb();
-      }
-      this.safeRegisterSubDomain(subDomainName, address, defaultAccount, eachCb);
+      // Using an anonymous function here because setting an async.js function as `async` creates issues
+      (async () => {
+        const directives = directivesRegExp.exec(address);
+        if (directives && directives.length) {
+          if (!directives[0].includes('accounts')) {
+            return eachCb();
+          }
+
+          const match = address.match(/\$accounts\[([0-9]+)]/);
+          const accountIndex = match[1];
+          const accounts = await web3.eth.getAccounts();
+
+          if (!accounts[accountIndex]) {
+            return eachCb(__('No corresponding account at index %d', match[1]));
+          }
+          address = accounts[accountIndex];
+        }
+        this.safeRegisterSubDomain(subDomainName, address, defaultAccount, eachCb);
+      })();
     }, cb);
   }
 
@@ -207,33 +224,34 @@ class ENS {
       return cb();
     }
 
-    await Promise.all(Object.keys(this.config.namesystemConfig.register.subdomains || {}).map((subDomainName) => {
-      return new Promise(async (resolve, _reject) => {
-        const address = this.config.namesystemConfig.register.subdomains[subDomainName];
-        const directivesRegExp = new RegExp(/\$(\w+\[?\d?\]?)/g);
+    await Promise.all(Object.keys(this.config.namesystemConfig.register.subdomains || {}).map(async (subDomainName) => {
+      const address = this.config.namesystemConfig.register.subdomains[subDomainName];
+      const directivesRegExp = new RegExp(/\$(\w+\[?\d?\]?)/g);
 
-        const directives = directivesRegExp.exec(address);
-        if (!directives || !directives.length) {
-          return resolve();
-        }
+      const directives = directivesRegExp.exec(address);
+      if (!directives || !directives.length || directives[0].includes('accounts')) {
+        return;
+      }
 
-        const contract = await this.events.request2("contracts:contract", directives[1]);
-        if (!contract) {
-          // if the contract is not registered in the config, it will be undefined here
-          this.logger.error(__('Tried to register the subdomain "{{subdomain}}" as contract "{{contractName}}", ' +
-            'but "{{contractName}}" does not exist. Is it configured in your contract configuration?', {
-            contractName: directives[1],
-            subdomain: subDomainName
-          }));
-          return resolve();
+      const contract = await this.events.request2("contracts:contract", directives[1]);
+      if (!contract) {
+        // if the contract is not registered in the config, it will be undefined here
+        this.logger.error(__('Tried to register the subdomain "{{subdomain}}" as contract "{{contractName}}", ' +
+          'but "{{contractName}}" does not exist. Is it configured in your contract configuration?', {
+          contractName: directives[1],
+          subdomain: subDomainName
+        }));
+        return;
+      }
+      let resolve;
+      const promise = new Promise(res => { resolve = res; });
+      this.safeRegisterSubDomain(subDomainName, contract.deployedAddress, defaultAccount, (err) => {
+        if (err) {
+          this.logger.error(err);
         }
-        this.safeRegisterSubDomain(subDomainName, contract.deployedAddress, defaultAccount, (err) => {
-          if (err) {
-            this.logger.error(err);
-          }
-          resolve();
-        });
+        resolve();
       });
+      return promise;
     }));
 
     cb();
@@ -270,30 +288,63 @@ class ENS {
     });
   }
 
+  async beforeContractBuild(_options, cb) {
+    if (this.configured) {
+      return cb();
+    }
+    // Add contracts to contract manager so that they can be resolved as dependencies
+    this.ensConfig.ENSRegistry = await this.events.request2('contracts:add', this.ensConfig.ENSRegistry);
+    this.ensConfig.Resolver = await this.events.request2('contracts:add', this.ensConfig.Resolver);
+    this.ensConfig.FIFSRegistrar = await this.events.request2('contracts:add', Object.assign({}, this.ensConfig.FIFSRegistrar, {deploy: false}));
+    cb();
+  }
+
   async configureContractsAndRegister(_options, cb) {
     const NO_REGISTRATION = 'NO_REGISTRATION';
     const self = this;
     if (self.configured) {
       return cb();
     }
-    const registration = this.config.namesystemConfig.register;
     const web3 = await this.web3;
 
     const networkId = await web3.eth.net.getId();
 
     if (ensContractAddresses[networkId]) {
+      if (this.config.namesystemConfig.register && this.config.namesystemConfig.register.rootDomain) {
+        this.logger.warn(__("Cannot register subdomains on this network, because we do not own the ENS contracts. Are you on testnet or mainnet?"));
+      }
+      this.config.namesystemConfig.register = false; // force subdomains from being registered
       this.ensConfig = recursiveMerge(this.ensConfig, ensContractAddresses[networkId]);
     }
 
+    const registration = this.config.namesystemConfig.register;
     const doRegister = registration && registration.rootDomain;
 
-    if (doRegister) {
-      this.ensConfig.ENSRegistry = await this.events.request2('contracts:add', this.ensConfig.ENSRegistry);
+    try {
       await this.events.request2('deployment:contract:deploy', this.ensConfig.ENSRegistry);
-      this.ensConfig.Resolver.args = [this.ensConfig.ENSRegistry.deployedAddress];
-      this.ensConfig.Resolver = await this.events.request2('contracts:add', this.ensConfig.Resolver);
-      await this.events.request2('deployment:contract:deploy', this.ensConfig.Resolver);
+    } catch (err) {
+      this.logger.error(__(`Error deploying the ENS Registry contract: ${err.message}`));
+      this.logger.debug(err.stack);
     }
+    // Add Resolver to contract manager again but this time with correct arguments (Registry address)
+    this.ensConfig.Resolver.args = [this.ensConfig.ENSRegistry.deployedAddress];
+    this.ensConfig.Resolver = await this.events.request2('contracts:add', this.ensConfig.Resolver);
+    try {
+      await this.events.request2('deployment:contract:deploy', this.ensConfig.Resolver);
+    } catch (err) {
+      this.logger.error(__(`Error deploying the ENS Resolver contract: ${err.message}`));
+      this.logger.debug(err.stack);
+    }
+
+    const config = {
+      registryAbi: self.ensConfig.ENSRegistry.abiDefinition,
+      registryAddress: self.ensConfig.ENSRegistry.deployedAddress,
+      resolverAbi: self.ensConfig.Resolver.abiDefinition,
+      resolverAddress: self.ensConfig.Resolver.deployedAddress
+    };
+
+    self.ensContract = new web3.eth.Contract(config.registryAbi, config.registryAddress);
+    self.resolverContract = new web3.eth.Contract(config.resolverAbi, config.resolverAddress);
 
     async.waterfall([
       function checkRootNode(next) {
@@ -314,25 +365,15 @@ class ENS {
         self.events.request('contracts:add', self.ensConfig.FIFSRegistrar, (_err, contract) => {
           self.ensConfig.FIFSRegistrar = contract;
           self.events.request('deployment:contract:deploy', self.ensConfig.FIFSRegistrar, (err) => {
+            config.registrarAbi = self.ensConfig.FIFSRegistrar.abiDefinition;
+            config.registrarAddress = self.ensConfig.FIFSRegistrar.deployedAddress;
+            self.registrarContract = new web3.eth.Contract(config.registrarAbi, config.registrarAddress);
             return next(err);
           });
         });
       },
       function registerRoot(next) {
-        let config = {
-          registryAbi: self.ensConfig.ENSRegistry.abiDefinition,
-          registryAddress: self.ensConfig.ENSRegistry.deployedAddress,
-          registrarAbi: self.ensConfig.FIFSRegistrar.abiDefinition,
-          registrarAddress: self.ensConfig.FIFSRegistrar.deployedAddress,
-          resolverAbi: self.ensConfig.Resolver.abiDefinition,
-          resolverAddress: self.ensConfig.Resolver.deployedAddress
-        };
-
         async function send() {
-          self.ensContract = new web3.eth.Contract(config.registryAbi, config.registryAddress);
-          self.registrarContract = new web3.eth.Contract(config.registrarAbi, config.registrarAddress);
-          self.resolverContract = new web3.eth.Contract(config.resolverAbi, config.resolverAddress);
-
           const defaultAccount = await self.web3DefaultAccount;
 
           const rootNode = namehash.hash(registration.rootDomain);
@@ -407,6 +448,9 @@ class ENS {
     });
 
     function checkArgs(args, done) {
+      if (typeof args === 'function') {
+        return done(null, args);
+      }
       if (Array.isArray(args)) {
         async.map(args, (arg, next) => {
           if (Array.isArray(arg)) {

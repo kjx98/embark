@@ -1,8 +1,12 @@
-/* global clearInterval global require setInterval */
-
 const Web3 = global.Web3 || require('web3');
 
 let Utils = {
+  hexPrefix: function(str) {
+    if (!(str && str.match)) return;
+    if (str.match(/^0x/)) return str;
+
+    return `0x${str}`;
+  },
   fromAscii: function(str) {
     var _web3 = new Web3();
     return _web3.utils ? _web3.utils.fromAscii(str) : _web3.fromAscii(str);
@@ -17,6 +21,7 @@ let Utils = {
     const promise = new Promise((resolve, reject) => {
       let hash;
       let calledBacked = false;
+      let interval;
 
       function callback(err, receipt) {
         if (calledBacked) {
@@ -40,7 +45,7 @@ let Utils = {
       // FIXME The issue somehow only happens when the blockchain node is started in the same terminal
       // Only poll with a Websocket provider
       if (web3.currentProvider.constructor.name === 'WebsocketProvider') {
-        var interval = setInterval(function () {
+        interval = setInterval(function () {
           if (!hash) {
             return;
           }

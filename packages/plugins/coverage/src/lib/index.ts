@@ -1,9 +1,9 @@
+import { Contract, Embark } from "embark-core";
 import { dappPath, File } from "embark-utils";
 import * as globule from "globule";
 import * as path from "path";
-import Web3Contract from "web3/eth/contract";
+import { Contract as Web3Contract } from "web3-eth-contract";
 
-import { Contract, Embark } from "embark";
 import { ContractEnhanced } from "./contractEnhanced";
 import { coverageContractsPath } from "./path";
 import { Coverage as ICoverage } from "./types";
@@ -40,7 +40,7 @@ export default class Coverage {
     });
 
     this.embark.events.on("tests:ready", this.pushDeployedContracts.bind(this));
-    this.embark.events.on("tests:finished", this.produceCoverageReport.bind(this));
+    this.embark.registerActionForEvent("tests:finished", this.produceCoverageReport.bind(this));
     this.embark.events.on("tests:manualDeploy", this.registerWeb3Contract.bind(this));
   }
 
@@ -67,7 +67,7 @@ export default class Coverage {
     this.deployedContracts = this.deployedContracts.concat(newContracts);
   }
 
-  private async produceCoverageReport(cb: () => void) {
+  private async produceCoverageReport(_params, cb: () => void) {
     const web3Contracts = await this.getWeb3Contracts();
     await Promise.all(this.collectEvents(web3Contracts));
     this.writeCoverageReport(cb);

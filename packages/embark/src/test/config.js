@@ -7,7 +7,10 @@ describe('embark.Config', function () {
   let config = new Config({
     env: 'myenv',
     configDir: 'test1/config/',
-    events: new Events()
+    events: new Events(),
+    embarkConfig: {
+      versions: {}
+    }
   });
   config.plugins = new Plugins({plugins: {}});
   config.logger = new TestLogger({});
@@ -17,7 +20,7 @@ describe('embark.Config', function () {
       config.loadBlockchainConfigFile();
       let expectedConfig = {
         "enabled": true,
-        "client": "geth",
+        "client": "ganache-cli",
         "proxy": true,
         "clientConfig": {
           "miningMode": "dev"
@@ -54,7 +57,7 @@ describe('embark.Config', function () {
     it('should convert Ether units', function () {
       let expectedConfig = {
         "enabled": true,
-        "client": "geth",
+        "client": "ganache-cli",
         "proxy": true,
         "clientConfig": {
           "miningMode": "dev"
@@ -107,7 +110,7 @@ describe('embark.Config', function () {
     it('should accept unitless gas values', function () {
       let expectedConfig = {
         "enabled": true,
-        "client": "geth",
+        "client": "ganache-cli",
         "proxy": true,
         "clientConfig": {
           "miningMode": "dev"
@@ -160,19 +163,19 @@ describe('embark.Config', function () {
     it('should use the specified endpoint', () => {
       let expectedConfig = {
         "enabled": true,
-        "client": "geth",
+        "client": "ganache-cli",
         "proxy": true,
         "clientConfig": {
           "miningMode": "dev"
         },
         "datadir": ".embark/extNetwork/datadir",
-        "rpcHost": "localhost",
-        "rpcPort": 8545,
+        "rpcHost": "mynetwork.com",
+        "rpcPort": false,
         "rpcCorsDomain": {
           "auto": true,
           "additionalCors": []
         },
-        "wsRPC": true,
+        "wsRPC": false,
         "wsOrigins": {
           "auto": true,
           "additionalCors": []
@@ -205,10 +208,11 @@ describe('embark.Config', function () {
     it('should load contract config correctly', function () {
       config.loadContractsConfigFile();
       let expectedConfig = {
-        versions: {solc: '0.5.0'},
+        versions: {solc: '0.6.1'},
         dappConnection: ['$WEB3', 'ws://localhost:8546', 'localhost:8545'],
         dappAutoEnable: true,
         "gas": "400000",
+        "library": "embarkjs",
         "strategy": "implicit",
         "contracts": {
           "SimpleStorage": {
@@ -227,10 +231,11 @@ describe('embark.Config', function () {
 
     it('should replace occurrences of `0x0` with full zero addresses', () => {
       let expectedConfig = {
-        versions: {solc: '0.5.0'},
+        versions: {solc: '0.6.1'},
         dappConnection: ['$WEB3', 'ws://localhost:8546', 'localhost:8545'],
         dappAutoEnable: true,
         "gas": "auto",
+        "library": "embarkjs",
         "strategy": "implicit",
         "contracts": {
           "SimpleStorage": {
@@ -247,7 +252,10 @@ describe('embark.Config', function () {
       let zeroAddressconfig = new Config({
         env: 'zeroaddress',
         configDir: 'test1/config/',
-        events: new Events()
+        events: new Events(),
+        embarkConfig: {
+          versions: {}
+        }
       });
       zeroAddressconfig.plugins = new Plugins({plugins: {}});
       zeroAddressconfig.logger = new TestLogger({});
@@ -261,7 +269,7 @@ describe('embark.Config', function () {
       config.contractsFiles = [];
       config.contractsConfig.contracts = [
         {
-          file: 'https://github.com/embark-framework/embark/blob/master/dapps/templates/demo/contracts/simple_storage.sol'
+          file: 'https://github.com/embarklabs/embark/blob/master/dapps/templates/demo/contracts/simple_storage.sol'
         },
         {
           file: 'github.com/status-im/contracts/contracts/identity/ERC725.sol'
@@ -273,14 +281,13 @@ describe('embark.Config', function () {
       const expected = [
         {
           "type": "http",
-          "externalUrl": "https://raw.githubusercontent.com/embark-framework/embark/master/dapps/templates/demo/contracts/simple_storage.sol",
-          "path": dappPath(".embark/contracts/embark-framework/embark/master/dapps/templates/demo/contracts/simple_storage.sol"),
-          "originalPath": ".embark/contracts/embark-framework/embark/master/dapps/templates/demo/contracts/simple_storage.sol",
+          "externalUrl": "https://raw.githubusercontent.com/embarklabs/embark/master/dapps/templates/demo/contracts/simple_storage.sol",
+          "path": dappPath(".embark/contracts/embarklabs/embark/master/dapps/templates/demo/contracts/simple_storage.sol"),
+          "originalPath": ".embark/contracts/embarklabs/embark/master/dapps/templates/demo/contracts/simple_storage.sol",
           "pluginPath": '',
           "basedir": "",
           "importRemappings": [],
           "resolver": undefined,
-          "storageConfig": undefined,
           "providerUrl": ""
         },
         {
@@ -292,7 +299,6 @@ describe('embark.Config', function () {
           "basedir": "",
           "importRemappings": [],
           "resolver": undefined,
-          "storageConfig": undefined,
           "providerUrl": ""
         },
         {
@@ -304,7 +310,6 @@ describe('embark.Config', function () {
           "basedir": "",
           "importRemappings": [],
           "resolver": undefined,
-          "storageConfig": undefined,
           "providerUrl": ""
         }
       ];

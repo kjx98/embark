@@ -1,12 +1,15 @@
 import sinon from 'sinon';
 import assert from 'assert';
-import { fakeEmbark, Plugins } from 'embark-testing';
+import { fakeEmbark } from 'embark-testing';
 import Deployment from '../src/';
+
+/* eslint jest/expect-expect: ["error", { "assertFunctionNames": ["assert", "expect"] }] */
 
 describe('stack/deployment', () => {
 
   const { embark, plugins } = fakeEmbark();
 
+  // eslint-disable-next-line no-unused-vars
   let deployment;
   let deployedContracts = [];
 
@@ -24,7 +27,7 @@ describe('stack/deployment', () => {
     deployedAction = sinon.spy((params, cb) => { cb(null, params); });
     afterAllAction = sinon.spy((params, cb) => { cb(null, params); });
 
-    deployFn = sinon.spy((contract, done) => {
+    deployFn = sinon.spy((contract, addlDeployParams, done) => {
       deployedContracts.push(contract);
       done(null, {}); // deployer needs to finish with a receipt object
     });
@@ -49,8 +52,8 @@ describe('stack/deployment', () => {
     embark.events.request('deployment:deployer:register', 'ethereum', deployFn);
     embark.events.request('deployment:contract:deploy', testContract, doneCb);
 
-    assert(beforeDeployAction.calledOnce)
-    assert(shouldDeployAction.calledOnce)
+    assert(beforeDeployAction.calledOnce);
+    assert(shouldDeployAction.calledOnce);
     assert(deployFn.calledWith(testContract));
     assert.equal(deployedContracts[0], testContract);
     assert(doneCb.calledOnce);

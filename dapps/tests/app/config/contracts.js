@@ -11,10 +11,8 @@ module.exports = {
       console.log("before deploying contracts");
       console.log("==========================");
     },
+    interfaces: ['Ownable'],
     deploy: {
-      Ownable: {
-        deploy: false
-      },
       Token: {
         deploy: false,
         args: [1000]
@@ -23,6 +21,12 @@ module.exports = {
         fromIndex: 0,
         args: [100],
         onDeploy: ["SimpleStorage.methods.setRegistar('embark.eth').send()"]
+      },
+      SimpleStorageArgsFn: {
+        instanceOf: 'SimpleStorage',
+        args: async ({ contracts, web3, logger }) => {
+          return [5000];
+        }
       },
       SimpleStorageTest: {
         //file: "./some_folder/test_contract.sol",

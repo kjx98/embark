@@ -1,18 +1,32 @@
 {
   "description": "Test DApp for integration testing purposes",
   "devDependencies": {
-    "@babel/code-frame": "7.5.5",
     "bootstrap": "3.4.1",
-    "embark": "^5.0.0-alpha.4",
-    "embark-dapp-test-service": "^5.0.0-alpha.0",
-    "embark-i18n": "^5.0.0-alpha.2",
-    "embark-reset": "^5.0.0-alpha.2",
+    "embark": "^6.0.1-nightly.0",
+    "embark-basic-pipeline": "^6.0.0",
+    "embark-dapp-test-service": "^6.0.0",
+    "embark-geth": "^6.0.1-nightly.0",
+    "embark-graph": "^6.0.0",
+    "embark-i18n": "^6.0.0",
+    "embark-ipfs": "^6.0.0",
+    "embark-parity": "^6.0.0",
+    "embark-profiler": "^6.0.0",
+    "embark-reset": "^6.0.0",
+    "embark-swarm": "^6.0.0",
+    "embark-whisper-geth": "^6.0.0",
+    "embarkjs": "^6.0.0",
+    "embarkjs-ens": "^6.0.0",
+    "embarkjs-ipfs": "^6.0.0",
+    "embarkjs-swarm": "^6.0.0",
+    "embarkjs-web3": "^6.0.0",
+    "embarkjs-whisper": "^6.0.0",
     "fs-extra": "8.1.0",
     "haml": "0.4.3",
     "jquery": "3.4.0",
     "react": "16.12.0",
     "react-bootstrap": "0.32.4",
     "react-dom": "16.12.0",
+    "rimraf": "3.0.0",
     "zeppelin-solidity": "1.12.0"
   },
   "license": "MIT",
@@ -22,8 +36,8 @@
     "ci": "npm run qa",
     "clean": "npm run reset",
     "qa": "npm run test",
-    "reset": "npx embark-reset",
+    "reset": "npx embark-reset && npx rimraf embark-*.tgz package",
     "test": "npx embark test"
   },
-  "version": "5.0.0-alpha.4"
+  "version": "6.0.1-nightly.1"
 }

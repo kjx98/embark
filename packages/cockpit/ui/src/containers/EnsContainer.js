@@ -11,6 +11,12 @@ import {getEnsRecords, isEnsEnabled, getEnsErrors} from "../reducers/selectors";
 
 class EnsContainer extends Component {
 
+  componentDidMount() {
+    // Fire off resolve to determine if ENS api endpoints have been registered.
+    // This will tell us if ENS is enabled or not.
+    this.props.resolve("embark.eth");
+  }
+
   showEns() {
     return (
       <React.Fragment>

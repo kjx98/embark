@@ -3,18 +3,181 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
-# [5.0.0-alpha.4](https://github.com/embark-framework/embark/compare/v5.0.0-alpha.3...v5.0.0-alpha.4) (2019-12-12)
+# [6.0.0](https://github.com/embarklabs/embark/compare/v5.3.1-nightly.0...v6.0.0) (2020-04-27)
+
+**Note:** Version bump only for package embark-web3
+
+
+
+
+
+# [5.3.0](https://github.com/embarklabs/embark/compare/v5.3.0-nightly.18...v5.3.0) (2020-04-24)
+
+**Note:** Version bump only for package embark-web3
+
+
+
+
+
+# [5.3.0-nightly.17](https://github.com/embarklabs/embark/compare/v5.3.0-nightly.16...v5.3.0-nightly.17) (2020-04-11)
+
+**Note:** Version bump only for package embark-web3
+
+
+
+
+
+# [5.3.0-nightly.16](https://github.com/embarklabs/embark/compare/v5.3.0-nightly.15...v5.3.0-nightly.16) (2020-04-03)
+
+**Note:** Version bump only for package embark-web3
+
+
+
+
+
+# [5.3.0-nightly.15](https://github.com/embarklabs/embark/compare/v5.3.0-nightly.14...v5.3.0-nightly.15) (2020-03-26)
+
+**Note:** Version bump only for package embark-web3
+
+
+
+
+
+# [5.3.0-nightly.14](https://github.com/embarklabs/embark/compare/v5.3.0-nightly.13...v5.3.0-nightly.14) (2020-03-25)
+
+**Note:** Version bump only for package embark-web3
+
+
+
+
+
+# [5.3.0-nightly.13](https://github.com/embarklabs/embark/compare/v5.3.0-nightly.12...v5.3.0-nightly.13) (2020-03-24)
+
+**Note:** Version bump only for package embark-web3
+
+
+
+
+
+# [5.3.0-nightly.12](https://github.com/embarklabs/embark/compare/v5.3.0-nightly.11...v5.3.0-nightly.12) (2020-03-21)
+
+**Note:** Version bump only for package embark-web3
+
+
+
+
+
+# [5.3.0-nightly.11](https://github.com/embarklabs/embark/compare/v5.3.0-nightly.10...v5.3.0-nightly.11) (2020-03-20)
+
+**Note:** Version bump only for package embark-web3
+
+
+
+
+
+# [5.3.0-nightly.10](https://github.com/embarklabs/embark/compare/v5.3.0-nightly.9...v5.3.0-nightly.10) (2020-03-14)
+
+**Note:** Version bump only for package embark-web3
+
+
+
+
+
+# [5.3.0-nightly.9](https://github.com/embarklabs/embark/compare/v5.3.0-nightly.8...v5.3.0-nightly.9) (2020-03-13)
+
+
+### Features
+
+* support selecting what library to generate artifacts ([ee1eb4e](https://github.com/embarklabs/embark/commit/ee1eb4e)), closes [#2285](https://github.com/embarklabs/embark/issues/2285)
+
+
+
+
+
+# [5.3.0-nightly.7](https://github.com/embarklabs/embark/compare/v5.3.0-nightly.6...v5.3.0-nightly.7) (2020-03-10)
+
+**Note:** Version bump only for package embark-web3
+
+
+
+
+
+# [5.3.0-nightly.6](https://github.com/embarklabs/embark/compare/v5.3.0-nightly.5...v5.3.0-nightly.6) (2020-03-07)
+
+**Note:** Version bump only for package embark-web3
+
+
+
+
+
+# [5.3.0-nightly.5](https://github.com/embarklabs/embark/compare/v5.3.0-nightly.4...v5.3.0-nightly.5) (2020-03-06)
+
+**Note:** Version bump only for package embark-web3
+
+
+
+
+
+# [5.3.0-nightly.4](https://github.com/embarklabs/embark/compare/v5.3.0-nightly.3...v5.3.0-nightly.4) (2020-03-05)
+
+**Note:** Version bump only for package embark-web3
+
+
+
+
+
+# [5.3.0-nightly.3](https://github.com/embarklabs/embark/compare/v5.3.0-nightly.2...v5.3.0-nightly.3) (2020-03-04)
+
+**Note:** Version bump only for package embark-web3
+
+
+
+
+
+# [5.3.0-nightly.2](https://github.com/embarklabs/embark/compare/v5.3.0-nightly.1...v5.3.0-nightly.2) (2020-03-03)
+
+**Note:** Version bump only for package embark-web3
+
+
+
+
+
+# [5.3.0-nightly.1](https://github.com/embarklabs/embark/compare/v5.3.0-nightly.0...v5.3.0-nightly.1) (2020-02-29)
+
+**Note:** Version bump only for package embark-web3
+
+
+
+
+
+# [5.3.0-nightly.0](https://github.com/embarklabs/embark/compare/v5.2.4-nightly.0...v5.3.0-nightly.0) (2020-02-27)
+
+**Note:** Version bump only for package embark-web3
+
+
+
+
+
+## [5.2.4-nightly.0](https://github.com/embarklabs/embark/compare/v5.2.3...v5.2.4-nightly.0) (2020-02-26)
+
+**Note:** Version bump only for package embark-web3
+
+
+
+
+
+## [5.2.3](https://github.com/embarklabs/embark/compare/v5.2.3-nightly.1...v5.2.3) (2020-02-25)
 
 
 ### Bug Fixes
 
-* **@embark/blockchain:** make disabling blockchain feature work ([446197b](https://github.com/embark-framework/embark/commit/446197b))
+* ensure that packages properly specify their dependencies ([3693ebd](https://github.com/embarklabs/embark/commit/3693ebd))
 
 
 
 
 
-# [5.0.0-alpha.3](https://github.com/embark-framework/embark/compare/v5.0.0-alpha.2...v5.0.0-alpha.3) (2019-12-06)
+## [5.2.2](https://github.com/embarklabs/embark/compare/v5.2.1...v5.2.2) (2020-02-19)
 
 **Note:** Version bump only for package embark-web3
 
@@ -22,18 +185,122 @@ See [Conventional Commits](https://conventionalcommits.org) for commit guideline
 
 
 
-# [5.0.0-alpha.2](https://github.com/embark-framework/embark/compare/v5.0.0-alpha.1...v5.0.0-alpha.2) (2019-12-05)
+# [5.2.0](https://github.com/embarklabs/embark/compare/v5.2.0-nightly.5...v5.2.0) (2020-02-18)
+
+**Note:** Version bump only for package embark-web3
+
+
+
+
+
+# [5.2.0-nightly.4](https://github.com/embarklabs/embark/compare/v5.2.0-nightly.3...v5.2.0-nightly.4) (2020-02-15)
+
+**Note:** Version bump only for package embark-web3
+
+
+
+
+
+# [5.2.0-nightly.3](https://github.com/embarklabs/embark/compare/v5.2.0-nightly.2...v5.2.0-nightly.3) (2020-02-14)
+
+**Note:** Version bump only for package embark-web3
+
+
+
+
+
+# [5.2.0-nightly.2](https://github.com/embarklabs/embark/compare/v5.2.0-nightly.1...v5.2.0-nightly.2) (2020-02-13)
+
+**Note:** Version bump only for package embark-web3
+
+
+
+
+
+# [5.2.0-nightly.1](https://github.com/embarklabs/embark/compare/v5.2.0-nightly.0...v5.2.0-nightly.1) (2020-02-08)
+
+**Note:** Version bump only for package embark-web3
+
+
+
+
+
+# [5.2.0-nightly.0](https://github.com/embarklabs/embark/compare/v5.1.2-nightly.1...v5.2.0-nightly.0) (2020-02-07)
+
+**Note:** Version bump only for package embark-web3
+
+
+
+
+
+## [5.1.2-nightly.0](https://github.com/embarklabs/embark/compare/v5.1.1...v5.1.2-nightly.0) (2020-02-05)
+
+**Note:** Version bump only for package embark-web3
+
+
+
+
+
+## [5.1.1](https://github.com/embarklabs/embark/compare/v5.1.1-nightly.4...v5.1.1) (2020-02-03)
+
+**Note:** Version bump only for package embark-web3
+
+
+
+
+
+## [5.1.1-nightly.2](https://github.com/embarklabs/embark/compare/v5.1.1-nightly.1...v5.1.1-nightly.2) (2020-01-31)
+
+**Note:** Version bump only for package embark-web3
+
+
+
+
+
+## [5.1.1-nightly.0](https://github.com/embarklabs/embark/compare/v5.1.0...v5.1.1-nightly.0) (2020-01-29)
+
+**Note:** Version bump only for package embark-web3
+
+
+
+
+
+# [5.1.0](https://github.com/embarklabs/embark/compare/v5.1.0-nightly.6...v5.1.0) (2020-01-27)
+
+**Note:** Version bump only for package embark-web3
+
+
+
+
+
+# [5.1.0-nightly.5](https://github.com/embarklabs/embark/compare/v5.1.0-nightly.4...v5.1.0-nightly.5) (2020-01-24)
+
+**Note:** Version bump only for package embark-web3
+
+
+
+
+
+# [5.1.0-nightly.4](https://github.com/embarklabs/embark/compare/v5.1.0-nightly.3...v5.1.0-nightly.4) (2020-01-23)
+
+**Note:** Version bump only for package embark-web3
+
+
+
+
+
+# [5.1.0-nightly.1](https://github.com/embarklabs/embark/compare/v5.1.0-nightly.0...v5.1.0-nightly.1) (2020-01-20)
 
 
 ### Features
 
-* **@embark/plugin:** add priority to regsiterActionForEvents ([776db1b](https://github.com/embark-framework/embark/commit/776db1b))
+* support Node.js v12.x and newer ([c093cf8](https://github.com/embarklabs/embark/commit/c093cf8))
 
 
 
 
 
-# [5.0.0-alpha.1](https://github.com/embark-framework/embark/compare/v5.0.0-alpha.0...v5.0.0-alpha.1) (2019-11-05)
+# [5.1.0-nightly.0](https://github.com/embarklabs/embark/compare/v5.0.0...v5.1.0-nightly.0) (2020-01-17)
 
 **Note:** Version bump only for package embark-web3
 
@@ -41,18 +308,88 @@ See [Conventional Commits](https://conventionalcommits.org) for commit guideline
 
 
 
-# [5.0.0-alpha.0](https://github.com/embark-framework/embark/compare/v4.1.1...v5.0.0-alpha.0) (2019-10-28)
+# [5.0.0](https://github.com/embarklabs/embark/compare/v5.0.0-beta.0...v5.0.0) (2020-01-07)
+
+**Note:** Version bump only for package embark-web3
+
+
+
+
+
+# [5.0.0-alpha.9](https://github.com/embarklabs/embark/compare/v5.0.0-alpha.8...v5.0.0-alpha.9) (2019-12-20)
+
+**Note:** Version bump only for package embark-web3
+
+
+
+
+
+# [5.0.0-alpha.8](https://github.com/embarklabs/embark/compare/v5.0.0-alpha.7...v5.0.0-alpha.8) (2019-12-19)
+
+**Note:** Version bump only for package embark-web3
+
+
+
+
+
+# [5.0.0-alpha.5](https://github.com/embarklabs/embark/compare/v5.0.0-alpha.4...v5.0.0-alpha.5) (2019-12-16)
+
+**Note:** Version bump only for package embark-web3
+
+
+
+
+
+# [5.0.0-alpha.4](https://github.com/embarklabs/embark/compare/v5.0.0-alpha.3...v5.0.0-alpha.4) (2019-12-12)
+
+
+### Bug Fixes
+
+* **@embark/blockchain:** make disabling blockchain feature work ([446197b](https://github.com/embarklabs/embark/commit/446197b))
+
+
+
+
+
+# [5.0.0-alpha.3](https://github.com/embarklabs/embark/compare/v5.0.0-alpha.2...v5.0.0-alpha.3) (2019-12-06)
+
+**Note:** Version bump only for package embark-web3
+
+
+
+
+
+# [5.0.0-alpha.2](https://github.com/embarklabs/embark/compare/v5.0.0-alpha.1...v5.0.0-alpha.2) (2019-12-05)
+
+
+### Features
+
+* **@embark/plugin:** add priority to regsiterActionForEvents ([776db1b](https://github.com/embarklabs/embark/commit/776db1b))
+
+
+
+
+
+# [5.0.0-alpha.1](https://github.com/embarklabs/embark/compare/v5.0.0-alpha.0...v5.0.0-alpha.1) (2019-11-05)
+
+**Note:** Version bump only for package embark-web3
+
+
+
+
+
+# [5.0.0-alpha.0](https://github.com/embarklabs/embark/compare/v4.1.1...v5.0.0-alpha.0) (2019-10-28)
 
 
 ### Build System
 
-* bump all packages' engines settings ([#1985](https://github.com/embark-framework/embark/issues/1985)) ([ed02cc8](https://github.com/embark-framework/embark/commit/ed02cc8))
+* bump all packages' engines settings ([#1985](https://github.com/embarklabs/embark/issues/1985)) ([ed02cc8](https://github.com/embarklabs/embark/commit/ed02cc8))
 
 
 ### Features
 
-* **@embark/test-runner:** make vm default node ([#1846](https://github.com/embark-framework/embark/issues/1846)) ([f54fbf0](https://github.com/embark-framework/embark/commit/f54fbf0))
-* call action before starting the blockchain node ([c54b8d9](https://github.com/embark-framework/embark/commit/c54b8d9))
+* **@embark/test-runner:** make vm default node ([#1846](https://github.com/embarklabs/embark/issues/1846)) ([f54fbf0](https://github.com/embarklabs/embark/commit/f54fbf0))
+* call action before starting the blockchain node ([c54b8d9](https://github.com/embarklabs/embark/commit/c54b8d9))
 
 
 ### BREAKING CHANGES
@@ -76,7 +413,7 @@ released.
 
 
 
-## [4.1.1](https://github.com/embark-framework/embark/compare/v4.1.0...v4.1.1) (2019-08-28)
+## [4.1.1](https://github.com/embarklabs/embark/compare/v4.1.0...v4.1.1) (2019-08-28)
 
 **Note:** Version bump only for package embark-web3
 
@@ -84,7 +421,7 @@ released.
 
 
 
-# [4.1.0](https://github.com/embark-framework/embark/compare/v4.1.0-beta.6...v4.1.0) (2019-08-12)
+# [4.1.0](https://github.com/embarklabs/embark/compare/v4.1.0-beta.6...v4.1.0) (2019-08-12)
 
 **Note:** Version bump only for package embark-web3
 
@@ -92,7 +429,7 @@ released.
 
 
 
-# [4.1.0-beta.6](https://github.com/embark-framework/embark/compare/v4.1.0-beta.5...v4.1.0-beta.6) (2019-08-09)
+# [4.1.0-beta.6](https://github.com/embarklabs/embark/compare/v4.1.0-beta.5...v4.1.0-beta.6) (2019-08-09)
 
 **Note:** Version bump only for package embark-web3
 
@@ -100,7 +437,7 @@ released.
 
 
 
-# [4.1.0-beta.5](https://github.com/embark-framework/embark/compare/v4.1.0-beta.4...v4.1.0-beta.5) (2019-07-10)
+# [4.1.0-beta.5](https://github.com/embarklabs/embark/compare/v4.1.0-beta.4...v4.1.0-beta.5) (2019-07-10)
 
 **Note:** Version bump only for package embark-web3
 
@@ -108,9 +445,9 @@ released.
 
 
 
-# [4.1.0-beta.4](https://github.com/embark-framework/embark/compare/v4.1.0-beta.3...v4.1.0-beta.4) (2019-06-27)
+# [4.1.0-beta.4](https://github.com/embarklabs/embark/compare/v4.1.0-beta.3...v4.1.0-beta.4) (2019-06-27)
 
 
 ### Bug Fixes
 
-* alleviate races re: embarkjs by introducing Plugin#addGeneratedCode and related refactors ([fc4faa8](https://github.com/embark-framework/embark/commit/fc4faa8))
+* alleviate races re: embarkjs by introducing Plugin#addGeneratedCode and related refactors ([fc4faa8](https://github.com/embarklabs/embark/commit/fc4faa8))

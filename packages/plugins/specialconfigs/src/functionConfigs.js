@@ -78,33 +78,38 @@ class FunctionConfigs {
     }
   }
 
-  getDependenciesObject(logger) {
-    return new Promise(async (resolve, _reject) => {
-      let contracts = await this.events.request2("contracts:list");
+  async determineSmartContractArgs(params, cb) {
+    const contract = params.contract;
+    const argsFn = contract.args;
+    try {
+      const logger = Utils.createLoggerWithPrefix(this.logger, 'determineArgs >');
+      const dependencies = await this.getDependenciesObject(logger);
+      const args = await argsFn(dependencies);
+      params.contract.args = args;
+      cb();
+    } catch (e) {
+      cb(new Error(`Error running args function for ${contract.className}: ${e.message || e}`));
+    }
+  }
 
-      let args = { contracts: {}, logger};
-      for (let contract of contracts) {
-        // TODO: for this to work correctly we need to add a default from address to the contract
-        if (contract.deploy === false) continue;
-        // eslint-disable-next-line no-await-in-loop
-        const contractRegisteredInVM = await this.checkContractRegisteredInVM(contract);
-        if (!contractRegisteredInVM) {
-          // eslint-disable-next-line no-await-in-loop
-          await this.events.request2("embarkjs:contract:runInVm", contract);
-        }
-        // eslint-disable-next-line no-await-in-loop
-        let contractInstance = await this.events.request2("runcode:eval", contract.className);
-        args.contracts[contract.className] = contractInstance;
-      }
+  async getDependenciesObject(logger) {
+    let contracts = await this.events.request2("contracts:list");
+    let args = { contracts: {}, logger};
+    for (let contract of contracts) {
+      // TODO: for this to work correctly we need to add a default from address to the contract
+      if (contract.deploy === false) continue;
+      // eslint-disable-next-line no-await-in-loop
+      let contractInstance = await this.events.request2("runcode:eval", contract.className);
+      args.contracts[contract.className] = contractInstance;
+    }
 
-      try {
-        let web3Instance = await this.events.request2("runcode:eval", "web3");
-        args.web3 = web3Instance;
+    try {
+      let web3Instance = await this.events.request2("runcode:eval", "web3");
+      args.web3 = web3Instance;
       // eslint-disable-next-line no-empty
-      } catch (_err) {}
+    } catch (_err) {}
 
-      resolve(args);
-    });
+    return args;
   }
 
   async checkContractRegisteredInVM(contract) {

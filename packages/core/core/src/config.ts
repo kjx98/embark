@@ -5,8 +5,6 @@ import { EmbarkEmitter as Events } from './events';
 import { filesMatchingPattern, fileMatchesPattern } from './utils/utils';
 const path = require('path');
 const deepEqual = require('deep-equal');
-const web3 = require('web3');
-const constants = require('embark-core/constants');
 import { __ } from 'embark-i18n';
 import {
   buildUrlFromConfig,
@@ -29,9 +27,24 @@ const { replaceZeroAddressShorthand } = AddressUtils;
 
 import { getBlockchainDefaults, getContractDefaults } from './configDefaults';
 
+const constants = require('../constants.json');
+
 const DEFAULT_CONFIG_PATH = 'config/';
 
-const embark5ChangesUrl = 'https://embark.status.im/docs/migrating_from_3.x.html#Updating-to-v5';
+const embark5ChangesUrl = 'https://framework.embarklabs.io/docs/migrating_from_3.x.html#Updating-to-v5';
+
+export interface EmbarkConfig {
+  app?: any;
+  contracts: string[];
+  config: string;
+  versions: {
+    solc: string;
+  };
+  generationDir?: string;
+  plugins?: any;
+  buildDir?: string;
+  migrations: string;
+}
 
 export class Config {
 
@@ -69,35 +82,40 @@ export class Config {
 
   events: Events;
 
-  embarkConfig: any = {};
+  embarkConfig: EmbarkConfig = constants.defaultEmbarkConfig;
 
   context: any;
 
   version: string;
 
-  shownNoAccountConfigMsg = false; // flag to ensure "no account config" message is only displayed once to the user
+  locale: string;
 
   corsParts: string[] = [];
 
-  providerUrl = null;
+  providerUrl = '';
 
   contractDirectories: string[] = [];
 
   buildDir: any;
+
+  client: string;
 
   dappPath = dappPath;
 
   constructor(options) {
     this.env = options.env || 'default';
     this.webServerConfig = options.webServerConfig;
+    this.embarkConfig = options.embarkConfig;
     this.configDir = options.configDir || DEFAULT_CONFIG_PATH;
     this.chainsFile = options.chainsFile;
     this.plugins = options.plugins;
+    this.locale = options.locale || 'en';
     this.logger = options.logger;
     this.package = options.package;
     this.events = options.events;
     this.context = options.context || [constants.contexts.any];
     this.version = options.version;
+    this.client = options.client;
 
     this.registerEvents();
   }
@@ -133,8 +151,8 @@ export class Config {
 
     // TODO: refactor this so reading the file can be done with a normal resolver or something that takes advantage of the plugin api
     this.events.setCommandHandler("config:contractsFiles:add", (filename, resolver) => {
-      resolver = resolver || function (callback) { callback(fs.readFileSync(filename).toString()); };
-      this.contractsFiles.push(new File({ path: filename, originalPath: filename, type: Types.custom, resolver }));
+      resolver = resolver || (callback => { callback(fs.readFileSync(filename).toString()); });
+      this.contractsFiles.push(new File({path: filename, originalPath: filename, type: Types.custom, resolver}));
     });
 
     this.events.setCommandHandler("config:contractsFiles:reset", (cb) => {
@@ -162,12 +180,6 @@ export class Config {
       interceptLogs = true;
     }
 
-    if (!fs.existsSync(options.embarkConfig)) {
-      this.logger.error(__('Cannot find file %s Please ensure you are running this command inside the Dapp folder', options.embarkConfig));
-      process.exit(1);
-    }
-
-    this.embarkConfig = fs.readJSONSync(options.embarkConfig);
     this.embarkConfig.plugins = this.embarkConfig.plugins || {};
 
     this.plugins = new Plugins({
@@ -178,7 +190,8 @@ export class Config {
       config: this,
       context: this.context,
       env: this.env,
-      version: this.version
+      version: this.version,
+      client: this.client
     });
 
     this.loadEmbarkConfigFile();
@@ -375,17 +388,17 @@ export class Config {
     }
 
     if (this.blockchainConfig.targetGasLimit && this.blockchainConfig.targetGasLimit.toString().match(unitRegex)) {
-      this.blockchainConfig.targetGasLimit = getWeiBalanceFromString(this.blockchainConfig.targetGasLimit, web3);
+      this.blockchainConfig.targetGasLimit = getWeiBalanceFromString(this.blockchainConfig.targetGasLimit);
     }
 
     if (this.blockchainConfig.gasPrice && this.blockchainConfig.gasPrice.toString().match(unitRegex)) {
-      this.blockchainConfig.gasPrice = getWeiBalanceFromString(this.blockchainConfig.gasPrice, web3);
+      this.blockchainConfig.gasPrice = getWeiBalanceFromString(this.blockchainConfig.gasPrice);
     }
 
     if (this.blockchainConfig.accounts) {
       this.blockchainConfig.accounts.forEach(acc => {
         if (acc.balance && acc.balance.toString().match(unitRegex)) {
-          acc.balance = getWeiBalanceFromString(acc.balance, web3);
+          acc.balance = getWeiBalanceFromString(acc.balance);
         }
       });
     }
@@ -415,32 +428,7 @@ export class Config {
       this.blockchainConfig.isAutoEndpoint = true;
     }
 
-    if (
-      !this.shownNoAccountConfigMsg &&
-      (/rinkeby|testnet|livenet/).test(this.blockchainConfig.networkType) &&
-      !(this.blockchainConfig.accounts && this.blockchainConfig.accounts.find(acc => acc.password)) &&
-      !this.blockchainConfig.isDev &&
-      this.env !== 'development' && this.env !== 'test') {
-      this.logger.warn((
-        '\n=== ' + __('Cannot unlock account - account config missing').bold + ' ===\n' +
-        __('Geth is configured to sync to a testnet/livenet and needs to unlock an account ' +
-          'to allow your dApp to interact with geth, however, the address and password must ' +
-          'be specified in your blockchain config. Please update your blockchain config with ' +
-          'a valid address and password: \n') +
-        ` - config/blockchain.js > ${this.env} > account\n\n`.italic +
-        __('Please also make sure the keystore file for the account is located at: ') +
-        '\n - Mac: ' + `~/Library/Ethereum/${this.env}/keystore`.italic +
-        '\n - Linux: ' + `~/.ethereum/${this.env}/keystore`.italic +
-        '\n - Windows: ' + `%APPDATA%\\Ethereum\\${this.env}\\keystore`.italic) +
-        __('\n\nAlternatively, you could change ' +
-          `config/blockchain.js > ${this.env} > networkType`.italic +
-          __(' to ') +
-          '"custom"\n'.italic).yellow
-      );
-      this.shownNoAccountConfigMsg = true;
-    }
-
-    const accountDocsMessage = __('For more info, check the docs: %s', 'https://embark.status.im/docs/blockchain_accounts_configuration.html'.underline);
+    const accountDocsMessage = __('For more info, check the docs: %s', 'https://framework.embarklabs.io/docs/blockchain_accounts_configuration.html'.underline);
     if (this.blockchainConfig.account) {
       this.logger.error(__('The `account` config for the blockchain was removed. Please use `accounts` instead.'));
       this.logger.error(accountDocsMessage);
@@ -460,7 +448,7 @@ export class Config {
     let configObject = getContractDefaults(this.embarkConfig.versions);
 
     const contractsConfigs = this.plugins.getPluginsProperty('contractsConfig', 'contractsConfigs');
-    contractsConfigs.forEach(function (pluginConfig) {
+    contractsConfigs.forEach(pluginConfig => {
       configObject = recursiveMerge(configObject, pluginConfig);
     });
 
@@ -475,7 +463,7 @@ export class Config {
       process.exit(1);
     }
     if (newContractsConfig.gas.match(unitRegex)) {
-      newContractsConfig.gas = getWeiBalanceFromString(newContractsConfig.gas, web3);
+      newContractsConfig.gas = getWeiBalanceFromString(newContractsConfig.gas);
     }
 
     newContractsConfig = prepareContractsConfig(newContractsConfig);
@@ -499,9 +487,7 @@ export class Config {
     if (storageConfig && storageConfig.upload && storageConfig.upload.getUrl) {
       this.providerUrl = storageConfig.upload.getUrl;
     }
-    for (const contractName in contracts) {
-      const contract = contracts[contractName];
-
+    for (const contract of Object.values(contracts) as any[]) {
       if (!contract.file) {
         continue;
       }
@@ -576,7 +562,7 @@ export class Config {
   loadCommunicationConfigFile() {
     const configObject = {
       default: {
-        enabled: true,
+        enabled: false,
         provider: "whisper",
         available_providers: ["whisper"],
         client: "geth",
@@ -641,17 +627,7 @@ export class Config {
   }
 
   loadEmbarkConfigFile() {
-    const configObject = {
-      options: {
-        solc: {
-          "optimize": true,
-          "optimize-runs": 200
-        }
-      },
-      generationDir: "embarkArtifacts"
-    };
-
-    this.embarkConfig = recursiveMerge(configObject, this.embarkConfig);
+    this.embarkConfig = recursiveMerge(constants.defaultEmbarkConfig, this.embarkConfig);
 
     const contracts = this.embarkConfig.contracts;
     // determine contract 'root' directories
@@ -711,27 +687,28 @@ export class Config {
     const readFiles: File[] = [];
     const storageConfig = self.storageConfig;
 
-    originalFiles.filter(function (file) {
+    originalFiles.filter(file => {
       return (file[0] === '$' || file.indexOf('.') >= 0);
-    }).filter(function (file) {
+    }).filter(file => {
       const basedir = findMatchingExpression(file, files);
       readFiles.push(new File({ path: file, originalPath: file, type: Types.dappFile, basedir, storageConfig }));
     });
 
-    const filesFromPlugins: File[] = [];
+    type _File = File & { intendedPath?: string, file?: string };
+    const filesFromPlugins: _File[] = [];
     const filePlugins = self.plugins.getPluginsFor('pipelineFiles');
     filePlugins.forEach((plugin: Plugin) => {
       try {
         const fileObjects = plugin.runFilePipeline();
-        for (let i = 0; i < fileObjects.length; i++) {
-          const fileObject = fileObjects[i];
+        for (const fileObject of fileObjects) {
           filesFromPlugins.push(fileObject);
         }
       } catch (err) {
         self.logger.error(err.message);
       }
     });
-    filesFromPlugins.filter(function (file) {
+
+    filesFromPlugins.filter(file => {
       if ((file.intendedPath && fileMatchesPattern(files, file.intendedPath)) || fileMatchesPattern(files, file.file)) {
         readFiles.push(file);
       }

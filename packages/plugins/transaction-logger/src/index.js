@@ -1,10 +1,11 @@
-const async = require('async');
 import { __ } from 'embark-i18n';
 const Web3 = require('web3');
+const util = require('util');
 
 const { blockchain: blockchainConstants } = require('embark-core/constants');
-import { dappPath, getAddressToContract, getTransactionParams, hexToNumber } from 'embark-utils';
-
+import { dappPath, hexToNumber, getAppendLogFileCargo, readAppendedLogs } from 'embark-utils';
+import { getAddressToContract, getTransactionParams } from './transactionUtils';
+export { getAddressToContract, getTransactionParams };
 
 const Transaction = require('ethereumjs-tx');
 const ethUtil = require('ethereumjs-util');
@@ -16,7 +17,7 @@ const LISTENED_METHODS = [
   blockchainConstants.transactionMethods.eth_sendRawTransaction
 ];
 
-class TransactionLogger {
+export default class TransactionLogger {
   constructor(embark, _options) {
     this.embark = embark;
     this.logger = embark.logger;
@@ -26,7 +27,7 @@ class TransactionLogger {
     this.contractsConfig = embark.config.contractsConfig;
     this.contractsDeployed = false;
     this.outputDone = false;
-    this.logFile = dappPath(".embark", "contractLogs.json");
+    this.logFile = dappPath(".embark", "contractLogs.json.txt");
     this.transactions = {};
 
     this._listenForLogRequests();
@@ -45,20 +46,7 @@ class TransactionLogger {
       });
     });
 
-    this.writeLogFile = async.cargo((tasks, callback) => {
-      const data = this._readLogs();
-
-      tasks.forEach(task => {
-        data[new Date().getTime()] = task;
-      });
-
-      this.fs.writeJson(this.logFile, data, err => {
-        if (err) {
-          console.error(err);
-        }
-        callback();
-      });
-    });
+    this.writeLogFile = getAppendLogFileCargo(this.logFile, this.logger);
   }
 
   get web3() {
@@ -161,13 +149,13 @@ class TransactionLogger {
 
     if (accounts.map(account => account.toLowerCase()).includes(address.toLowerCase())) {
       const web3 = await this.web3;
-      const value = web3.utils.fromWei(web3.utils.hexToNumberString(dataObject.value));
+      const value = dataObject.value ? web3.utils.fromWei(web3.utils.hexToNumberString(dataObject.value)) : 0;
       return this.logger.info(`Blockchain>`.underline + ` transferring ${value} ETH from ${dataObject.from} to ${address}`.bold);
     }
 
     const contract = this.addressToContract[address];
     if (!contract) {
-      this.logger.info(`Contract log for unknown contract: ${JSON.stringify(args)}`);
+      this.logger.debug(`Contract log for unknown contract: ${util.inspect(args)}`);
       return this._getContractsList((contractsList) => {
         this.addressToContract = getAddressToContract(contractsList, this.addressToContract);
       });
@@ -236,8 +224,7 @@ class TransactionLogger {
       apiRoute,
       (ws, _req) => {
         this.events.on('contracts:log', (log) => {
-          ws.send(JSON.stringify(log), () => {
-          });
+          ws.send(JSON.stringify(log), () => {});
         });
       }
     );
@@ -245,29 +232,23 @@ class TransactionLogger {
     this.embark.registerAPICall(
       'get',
       apiRoute,
-      (req, res) => {
-        res.send(JSON.stringify(this._getLogs()));
+      async (req, res) => {
+        res.send(await this._readLogs(true));
       }
     );
-  }
-
-  _getLogs() {
-    const data = this._readLogs();
-    return Object.values(data).reverse();
   }
 
   _saveLog(log) {
     this.writeLogFile.push(log);
   }
 
-  _readLogs() {
-    this.fs.ensureFileSync(this.logFile);
+  async _readLogs(asString = false) {
     try {
-      return JSON.parse(this.fs.readFileSync(this.logFile));
-    } catch (_error) {
-      return {};
+      return readAppendedLogs(this.logFile, asString);
+    } catch (e) {
+      this.logger.error('Error reading contract log file', e.message);
+      this.logger.trace(e.trace);
+      return asString ? '[]' : [];
     }
   }
 }
-
-module.exports = TransactionLogger;

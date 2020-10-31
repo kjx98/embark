@@ -1,34 +1,49 @@
 {
   "name": "embark-reset",
-  "version": "5.0.0-alpha.2",
+  "version": "6.0.0",
   "author": "Iuri Matias <iuri.matias@gmail.com>",
   "contributors": [],
   "description": "DApp reset utlity for Embark",
-  "homepage": "https://github.com/embark-framework/embark/tree/master/packages/core/reset#readme",
-  "bugs": "https://github.com/embark-framework/embark/issues",
+  "homepage": "https://github.com/embarklabs/embark/tree/master/packages/core/reset#readme",
+  "bugs": "https://github.com/embarklabs/embark/issues",
   "license": "MIT",
   "repository": {
     "directory": "packages/core/reset",
     "type": "git",
-    "url": "https://github.com/embark-framework/embark.git"
+    "url": "https://github.com/embarklabs/embark.git"
   },
-  "bin": "./bin.js",
-  "main": "index.js",
+  "bin": "./bin/reset",
+  "main": "./src/index.js",
+  "types": "./dist/index.d.ts",
   "files": [
-    "bin.js"
+    "bin",
+    "src"
   ],
-  "embark-collective": {},
+  "embark-collective": {
+    "typecheck": true
+  },
   "scripts": {
+    "_typecheck": "npm run solo -- typecheck",
+    "ci": "npm run qa",
+    "clean": "npm run reset",
+    "lint": "eslint bin/reset src/",
+    "qa": "npm-run-all lint _typecheck",
+    "reset": "npx rimraf dist embark-*.tgz package",
     "solo": "embark-solo"
+  },
+  "eslintConfig": {
+    "extends": "../../../.eslintrc.json"
   },
   "dependencies": {
     "rimraf": "3.0.0"
   },
   "devDependencies": {
-    "embark-solo": "^5.0.0-alpha.2"
+    "embark-solo": "^6.0.0",
+    "eslint": "6.8.0",
+    "npm-run-all": "4.1.5"
   },
   "engines": {
-    "node": ">=10.17.0 <12.0.0",
+    "node": ">=10.17.0",
     "npm": ">=6.11.3",
     "yarn": ">=1.19.1"
   }

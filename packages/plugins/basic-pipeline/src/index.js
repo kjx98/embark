@@ -8,15 +8,15 @@ require('./env');
 
 class BasicPipeline {
 
-  constructor(embark, options) {
+  constructor(embark) {
     this.embark = embark;
     this.assetFiles = embark.config.assetFiles;
     this.isFirstBuild = true;
     this.embarkConfig = embark.config.embarkConfig;
     // TODO: why god why
-    this.useDashboard = options.useDashboard;
+    // this.useDashboard = options.useDashboard;
+    this.useDashboard = true;
     this.fs = embark.fs;
-    this.webpackConfigName = options.webpackConfigName;
     this.env = embark.config.env;
     this.buildDir = embark.config.buildDir;
     this.contractsFiles = embark.config.contractsFiles;
@@ -24,9 +24,13 @@ class BasicPipeline {
 
     this.logger = embark.logger;
     this.events = embark.events;
-    this.plugins = options.plugins;
+    this.plugins = embark.pluginsAPI;
     this.pipelinePlugins = this.plugins.getPluginsFor('pipeline');
     this.pipelineConfig = embark.config.pipelineConfig;
+
+    const env = embark.config.env;
+    this.webpackConfigName = embark.pluginConfig[env]?.webpackConfigName ?? 'development';
+
     let plugin = this.plugins.createPlugin('basic-pipeline', {});
 
     plugin.registerActionForEvent("pipeline:generateAll:after", this.webpackAssets.bind(this));
@@ -117,7 +121,8 @@ class BasicPipeline {
           options: {
             webpackConfigName: self.webpackConfigName,
             pipelineConfig: self.pipelineConfig,
-            fs: self.embark.fs
+            fs: self.embark.fs,
+            embarkConfig: self.embark.config.embarkConfig
           }
         });
         webpackProcess.send({action: constants.pipeline.build, assets: self.assetFiles, importsList});

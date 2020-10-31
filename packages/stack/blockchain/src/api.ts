@@ -1,9 +1,9 @@
-import { Embark, Events } from "embark";
+import { Embark, EmbarkEvents } from "embark-core";
 import { Logger } from 'embark-logger';
 export default class BlockchainAPI {
   private embark: Embark;
   private logger: Logger;
-  private events: Events;
+  private events: EmbarkEvents;
   private apiPlugins: Map<string, Map<string, (...args: any[]) => void>> = new Map();
   private requestPlugins: Map<string, Map<string, (...args: any[]) => any>> = new Map();
   constructor(embark: Embark) {
@@ -109,9 +109,9 @@ export default class BlockchainAPI {
       getGasPrice(cb);
     });
 
-    this.events.setCommandHandler("blockchain:networkId", async (cb) => {
-      const getNetworkId = await this.getRequestForBlockchain(blockchainName, "getNetworkId");
-      cb(getNetworkId);
+    this.events.setCommandHandler("blockchain:networkId", (cb) => {
+      const getNetworkId = this.getRequestForBlockchain(blockchainName, "getNetworkId");
+      getNetworkId(cb);
     });
 
     this.events.setCommandHandler("blockchain:getTransaction", async (txId, cb) => {
@@ -248,10 +248,10 @@ export default class BlockchainAPI {
     this.embark.registerAPICall(
       "get",
       "/embark-api/blockchain/contracts/events",
-      (_req, res) => {
+      async (_req, res) => {
         try {
           const getEvents = this.getCallForBlockchain(blockchainName, "getEvents");
-          res.send(JSON.stringify(getEvents()));
+          res.send(await getEvents(true));
         } catch (error) {
           res.status(500).send({ error });
         }

@@ -1,5 +1,3 @@
-/* global global require */
-
 const Web3 = require('web3');
 const __embarkWeb3 = {};
 
@@ -48,11 +46,12 @@ __embarkWeb3.newContract = function (options) {
 };
 
 __embarkWeb3.send = function () {
+  console.log('ARGUEMTNS', ...arguments);
   return this.web3.eth.sendTransaction(...arguments);
 };
 
 __embarkWeb3.toWei = function () {
-  return this.web3.toWei(...arguments);
+  return this.web3.utils.toWei(...arguments);
 };
 
 __embarkWeb3.getNetworkId = function () {

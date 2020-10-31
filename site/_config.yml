@@ -4,7 +4,7 @@ description: "Embark is a simple & powerful framework for decentralized applicat
 author: Embark
 language: en
 
-url: https://embark.status.im
+url: https://framework.embarklabs.io
 root: /
 permalink: news/:year/:month/:day/:title/
 code_dir: downloads/code
@@ -15,7 +15,7 @@ per_page: 0
 theme: embark
 deploy:
   type: git
-  repo: git@github.com:hexojs/hexojs.github.io.git
+  repo: git@github.com:embarklabs/embark
 
 highlight:
   enable: true
@@ -29,7 +29,7 @@ algolia:
     apiKey: 439d8dc2add18007a2f31be4a9c0ed70
     indexName: embark
 twitter: EmbarkProject
-github: embark-framework/embark
+github: embarklabs/embark
 autoprefixer:
   enable: true
   browsers:
@@ -38,3 +38,5 @@ node_sass:
   outputStyle: nested
   precision: 5
   sourceComments: false
+external_link:
+  enable: false

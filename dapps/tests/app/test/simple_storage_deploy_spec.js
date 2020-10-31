@@ -1,10 +1,10 @@
-/*global contract, it, assert, before, web3*/
-const SimpleStorage = require('Embark/contracts/SimpleStorage');
-const {Utils} = require('Embark/EmbarkJS');
+/*global artifacts, contract, it, assert, before, web3*/
+const SimpleStorage = artifacts.require('SimpleStorage');
+const {Utils} = artifacts.require('EmbarkJS');
 
 contract("SimpleStorage Deploy", function () {
   let simpleStorageInstance;
-  before(function() {
+  before(async () => {
     return new Promise(async (resolve, reject) => {
       const gas = await SimpleStorage.deploy({arguments: [150]}).estimateGas();
 

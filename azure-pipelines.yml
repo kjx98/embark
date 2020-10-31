@@ -1,7 +1,12 @@
+# no PR triggers
+pr: none
+
 variables:
   YARN_CACHE_FOLDER: $(Pipeline.Workspace)/.yarn
   ipfsVersion: '0.4.22'
   node10: '^10.17.0'
+  node12: '^12.0.0'
+  node13: '^13.0.0'
   pythonVersion: '2.7.x'
   yarnVersion: '1.19.1'
 
@@ -15,6 +20,24 @@ strategy:
       imageName: 'macos-10.14'
     Node 10 / Windows:
       nodeVersion: $(node10)
+      imageName: 'vs2017-win2016'
+    Node 12 / Linux:
+      nodeVersion: $(node12)
+      imageName: 'ubuntu-18.04'
+    Node 12 / macOS:
+      nodeVersion: $(node12)
+      imageName: 'macos-10.14'
+    Node 12 / Windows:
+      nodeVersion: $(node12)
+      imageName: 'vs2017-win2016'
+    Node 13 / Linux:
+      nodeVersion: $(node13)
+      imageName: 'ubuntu-18.04'
+    Node 13 / macOS:
+      nodeVersion: $(node13)
+      imageName: 'macos-10.14'
+    Node 13 / Windows:
+      nodeVersion: $(node13)
       imageName: 'vs2017-win2016'
 
 pool:
@@ -33,6 +56,34 @@ steps:
   inputs:
     architecture: x64
     versionSpec: $(pythonVersion)
+
+- script: |
+    mkdir -p ../Downloads
+    cd ../Downloads
+    curl -L -o "solc" "https://github.com/ethereum/solidity/releases/download/v0.6.4/solc-static-linux"
+    chmod +x solc
+  displayName: Linux install Solc
+  condition: eq( variables['Agent.OS'], 'Linux' )
+
+#   NOTICE:
+#   Solc installation disabled for now until solc provides binaries for download.
+#   Installation on Mac via brew takes too long.
+#
+#- script: |
+#    brew update
+#    brew upgrade
+#    brew tap ethereum/ethereum
+#    brew install solidity
+#  displayName: Mac install Solc
+#  condition: eq( variables['Agent.OS'], 'Darwin' )
+
+- powershell: |
+    mkdir -p ../Downloads
+    $client = new-object System.Net.WebClient
+    $client.DownloadFile("https://github.com/ethereum/solidity/releases/download/v0.6.4/solidity-windows.zip", "..\Downloads\solidity-windows.zip")
+    Expand-Archive –Path “..\Downloads\solidity-windows.zip” –Destination “..\Downloads\solidity-windows”
+  displayName: Windows install Solc
+  condition: eq( variables['Agent.OS'], 'Windows_NT' )
 
 - bash: |
     mkdir -p ../Downloads
@@ -86,6 +137,7 @@ steps:
     pushd "$PWD" &>/dev/null
     cd ../Downloads
     export PATH="${PWD}/go-ipfs:${PATH}"
+    export PATH="${PWD}:${PATH}"
     export PATH="${HOME}/.yarn/bin:${HOME}/.config/yarn/global/node_modules/.bin:${PATH}"
     yarn config set cache-folder "${YARN_CACHE_FOLDER}" &>/dev/null
     popd &>/dev/null
@@ -97,6 +149,7 @@ steps:
     pushd
     cd ..\Downloads
     $env:PATH="$($PWD.Path)\go-ipfs;$($env:PATH)"
+    $env:PATH="$($PWD.Path)\solidity-windows;$($env:PATH)"
     $env:PATH="$($env:USERPROFILE)\.yarn\bin;$($env:USERPROFILE)\.config\yarn\global\node_modules\.bin;$($env:PATH)"
     yarn config set cache-folder "$($YARN_CACHE_FOLDER)" | out-null
     popd

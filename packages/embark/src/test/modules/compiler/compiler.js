@@ -1,16 +1,22 @@
-/*global describe, it, require*/
+/* global describe it */
+
 import { Events, Plugins, TestLogger } from 'embark-core';
 import { File, Types } from "embark-utils";
+import findUp from 'find-up';
 
 const assert = require('assert');
 
-const Compiler = require('embark-compiler');
+import Compiler from 'embark-compiler';
 
 const readFile = function(file) {
   return new File({filename: file, type: Types.dappFile, path: file});
 };
 
-const currentSolcVersion = require('../../../../package.json').dependencies.solc;
+// will need refactor if we some day switch back to specifying version ranges
+const currentSolcVersion = require(findUp.sync(
+  'node_modules/embark-solidity/package.json',
+  {cwd: __dirname}
+)).dependencies.solc;
 const TestEvents = {
   request: (cmd, cb) => {
     cb(currentSolcVersion);
@@ -56,6 +62,7 @@ describe('embark.Compiler', function() {
       }
     };
 
+    // eslint-disable-next-line no-unused-vars
     const compiler = new Compiler(embarkObject, {plugins: plugins});
 
     it("should return aggregated result", (done) => {

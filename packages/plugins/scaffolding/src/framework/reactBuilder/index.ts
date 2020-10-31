@@ -1,8 +1,8 @@
-import { Contract, Embark } /* supplied by @types/embark in packages/embark-typings */ from "embark";
+import { Contract, Embark } from "embark-core";
 import { __ } from "embark-i18n";
 import Handlebars from "handlebars";
 import * as path from "path";
-import { ABIDefinition } from "web3/eth/abi";
+import { AbiItem } from "web3-utils";
 import { Builder } from "../../builder";
 import { CommandOptions } from "../../commandOptions";
 import { SmartContractsRecipe } from "../../smartContractsRecipe";
@@ -10,7 +10,7 @@ import { SmartContractsRecipe } from "../../smartContractsRecipe";
 const utils = require("embark-utils");
 require("../../handlebarHelpers");
 
-interface ABIDefinitionDecorated extends ABIDefinition {
+interface AbiItemDecorated extends AbiItem {
   isIpfsText?: boolean;
   isIpfsFile?: boolean;
   isStandard?: boolean;
@@ -46,8 +46,13 @@ export class ReactBuilder implements Builder {
 
   private updateEmbarkJson(contractName: string, files: string[]) {
     const embarkJsonPath = path.join(utils.dappPath(), "embark.json");
-    const embarkJson = this.embark.fs.readJSONSync(embarkJsonPath);
-    embarkJson.app[`js/${contractName}.js`] = `app/${contractName}.js`;
+    let embarkJson;
+    try {
+      embarkJson = this.embark.fs.readJSONSync(embarkJsonPath);
+    } catch (e) {
+      throw new Error('No embark.json file found. Add an embark.json file to use the scaffold command.');
+    }
+    embarkJson.app[`${contractName}.js`] = `app/${contractName}.js`;
     embarkJson.app[`${contractName}.html`] = `app/${contractName}.html`;
 
     this.embark.fs.writeFileSync(embarkJsonPath, JSON.stringify(embarkJson, null, 2));
@@ -61,7 +66,7 @@ export class ReactBuilder implements Builder {
     const dappTemplate = Handlebars.compile(dappSource);
 
     const indexData = {
-      filename: contractName.toLowerCase(),
+      filename: contractName,
       title: contractName,
     };
 
@@ -70,9 +75,15 @@ export class ReactBuilder implements Builder {
       return [];
     }
 
+    const relativeGenerationDir = path.relative(
+      utils.dappPath('app'),
+      utils.dappPath(this.embark.config.embarkConfig.generationDir)
+    );
+
     const dappData = {
       contractName,
       functions: this.getFunctions(contract),
+      relativeGenerationDir
     };
 
     return [indexTemplate(indexData), dappTemplate(dappData)];
@@ -82,7 +93,7 @@ export class ReactBuilder implements Builder {
     const ipfsAttributes = this.description.ipfsAttributes(contract.className);
 
     return contract.abiDefinition.filter((entry) => entry.type === "function").map((entry) => {
-      const decorated: ABIDefinitionDecorated = entry;
+      const decorated: AbiItemDecorated = entry;
       const inputName = entry.inputs && entry.inputs.length > 1 ? entry.inputs[1].name.substring(1, entry.inputs[1].name.length) : "";
       const functionName = entry.name || "";
 
@@ -115,7 +126,11 @@ export class ReactBuilder implements Builder {
   }
 
   private installDependencies() {
-    const cmd = "npm install react react-bootstrap react-dom";
+    let pkgManager = 'npm install';
+    if (this.embark.fs.existsSync(utils.dappPath('yarn.lock'))) {
+      pkgManager = 'yarn add';
+    }
+    const cmd = `${pkgManager} react react-bootstrap@^0.33.1 react-dom`;
     return new Promise<void>((resolve, reject) => {
       utils.runCmd(cmd, null, (error: string) => {
         if (error) {

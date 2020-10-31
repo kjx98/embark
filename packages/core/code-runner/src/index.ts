@@ -1,4 +1,4 @@
-import { Callback, Embark, Events } /* supplied by @types/embark in packages/embark-typings */ from "embark";
+import { Callback, Embark, EmbarkEvents } from "embark-core";
 import { __ } from "embark-i18n";
 import { Logger } from 'embark-logger';
 import * as fs from "./fs";
@@ -8,10 +8,10 @@ export { fs, VM };
 
 class CodeRunner {
   private logger: Logger;
-  private events: Events;
+  private events: EmbarkEvents;
   private vm: VM;
 
-  constructor(embark: Embark, _options: any) {
+  constructor(private embark: Embark, _options: any) {
     this.logger = embark.logger;
     this.events = embark.events;
 
@@ -38,7 +38,7 @@ class CodeRunner {
 
   private registerCommands() {
     this.events.setCommandHandler("runcode:getContext", (cb) => {
-      cb(this.vm.options.sandbox);
+      cb(null, this.vm.options.sandbox);
     });
     this.events.setCommandHandler("runcode:eval", this.evalCode.bind(this));
   }
@@ -46,10 +46,16 @@ class CodeRunner {
   private whitelistVar(varName: string, cb = () => { }) {
     // @ts-ignore
     this.vm._options.require.external.push(varName); // @ts-ignore
+    cb();
   }
 
-  private registerVar(varName: string, code: any, cb = () => { }) {
-    this.vm.registerVar(varName, code, cb);
+  private registerVar(varName: string, code: any, cb = (...args) => { }) {
+    this.embark.config.plugins.emitAndRunActionsForEvent<any>(`runcode:register:${varName}`, code, (err, updated) => {
+      if (err) {
+        return cb(err);
+      }
+      this.vm.registerVar(varName, updated, cb);
+    });
   }
 
   private evalCode(code: string, cb: Callback<any>, tolerateError = false, logCode = true, logError = true) {

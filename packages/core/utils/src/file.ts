@@ -1,9 +1,11 @@
+import { Logger } from 'embark-logger';
 import { __ } from 'embark-i18n';
 import * as fs from 'fs-extra';
 import * as path from 'path';
 import { downloadFile } from './network';
 import { dappPath, embarkPath } from './pathUtils';
 import { ImportRemapping, prepareForCompilation } from './solidity/remapImports';
+import { cargo } from 'async';
 
 const HTTP_CONTRACTS_DIRECTORY = '.embark/contracts/';
 
@@ -21,7 +23,6 @@ export class File {
   public basedir: string;
   public resolver: (callback: (content: string) => void) => void;
   public pluginPath: string;
-  public storageConfig: any;
   public providerUrl: string;
   public importRemappings: ImportRemapping[] = [];
   public originalPath: string;
@@ -32,7 +33,6 @@ export class File {
     this.basedir = options.basedir || '';
     this.resolver = options.resolver;
     this.pluginPath = options.pluginPath ? options.pluginPath : '';
-    this.storageConfig = options.storageConfig;
     this.providerUrl = '';
     this.originalPath = options.originalPath || '';
 
@@ -101,7 +101,7 @@ export function getExternalContractUrl(file: string, providerUrl: string) {
   const MALFORMED_SWARM_ERROR = 'Malformed Swarm gateway URL for ';
   const MALFORMED_ERROR = 'Malformed Github URL for ';
   const MALFORMED_IPFS_ERROR = 'Malformed IPFS URL for ';
-  const IPFS_GETURL_NOTAVAILABLE = 'IPFS getUrl is not available. Please set it in your storage config. For more info: https://embark.status.im/docs/storage_configuration.html';
+  const IPFS_GETURL_NOTAVAILABLE = 'IPFS getUrl is not available. Please set it in your storage config. For more info: https://framework.embarklabs.io/docs/storage_configuration.html';
   if (file.startsWith('https://github')) {
     const file_path = file.match(/https:\/\/github\.[a-z]+\/(.*)/);
     if (!file_path) {
@@ -178,4 +178,54 @@ export function getExternalContractUrl(file: string, providerUrl: string) {
     filePath: HTTP_CONTRACTS_DIRECTORY + (match !== null ? match[1] : ''),
     url,
   };
+}
+
+export function  getCircularReplacer() {
+  const seen = new WeakSet();
+  return (key, value) => {
+    if (typeof value === "object" && value !== null) {
+      if (seen.has(value)) {
+        return;
+      }
+      seen.add(value);
+    }
+    return value;
+  };
+}
+
+export function getAppendLogFileCargo(logFilePath: string, logger: Logger) {
+  return cargo((tasks, callback) => {
+    let appendThis = '';
+    tasks.forEach(task => {
+      // Write each line to a JSON string. The replacer is to avoid circular dependencies
+      // Add a comma at the end to be able to make an array off of it when reading
+      appendThis += `${JSON.stringify(task, getCircularReplacer())},\n`;
+    });
+    fs.appendFile(logFilePath, appendThis, (err) => {
+      if (err) {
+        logger.error('Error writing to the log file', err.message);
+        logger.trace(err);
+      }
+      callback();
+    });
+  });
+}
+
+export async function readAppendedLogs(logFile: string, asString: boolean = false) {
+  await fs.ensureFile(logFile);
+  const data = await fs.readFile(logFile);
+
+  let stringData = data.toString();
+
+  if (!stringData) {
+    return asString ? '[]' : [];
+  }
+
+  // remove last comma and add brackets around to make it an array of object logs
+  stringData = `[${stringData.substring(0, stringData.length - 2)}]`;
+  if (asString) {
+    return stringData;
+  }
+
+  return JSON.parse(stringData);
 }

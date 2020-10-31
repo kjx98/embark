@@ -1,14 +1,14 @@
-/*global contract, config, it, assert, web3*/
-const SimpleStorage = require('Embark/contracts/SimpleStorage');
+/*global artifacts, contract, config, it, assert, web3*/
+const SimpleStorage = artifacts.require('SimpleStorage');
 
 let accounts;
 
-// For documentation please see https://embark.status.im/docs/contracts_testing.html
+// For documentation please see https://framework.embarklabs.io/docs/contracts_testing.html
 config({
   //blockchain: {
   //  accounts: [
   //    // you can configure custom accounts with a custom balance
-  //    // see https://embark.status.im/docs/contracts_testing.html#Configuring-accounts
+  //    // see https://framework.embarklabs.io/docs/contracts_testing.html#Configuring-accounts
   //  ]
   //},
   contracts: {

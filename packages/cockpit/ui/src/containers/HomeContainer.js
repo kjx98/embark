@@ -16,7 +16,6 @@ import {
   stopProcessLogs
 } from "../actions";
 
-import DataWrapper from "../components/DataWrapper";
 import Console from '../components/Console';
 import {EMBARK_PROCESS_NAME, LOG_LIMIT} from '../constants';
 import PageHead from '../components/PageHead';
@@ -53,21 +52,19 @@ class HomeContainer extends Component {
         <PageHead title="Dashboard" description="Overview of available services and logs. Interact with Embark using the console. Summary of deployed contracts." />
         <ServicesContainer />
 
-        <DataWrapper shouldRender={this.props.processes.length > 0 } {...this.props} render={({processes, postCommand, postCommandSuggestions, processLogs, commandSuggestions}) => (
-          <Card>
-            <CardBody>
-              <CardTitle>Console</CardTitle>
-              <Console activeProcess={this.state.activeProcess}
-                       postCommand={postCommand}
-                       postCommandSuggestions={postCommandSuggestions}
-                       processes={processes}
-                       processLogs={processLogs}
-                       commandSuggestions={commandSuggestions}
-                       isEmbark={() => this.isEmbark}
-                       updateTab={processName => this.updateTab(processName)} />
-            </CardBody>
-          </Card>
-        )} />
+        <Card>
+          <CardBody>
+            <CardTitle>Console</CardTitle>
+            <Console activeProcess={this.state.activeProcess}
+                      postCommand={this.props.postCommand}
+                      postCommandSuggestions={this.props.postCommandSuggestions}
+                      processes={this.props.processes}
+                      processLogs={this.props.processLogs}
+                      commandSuggestions={this.props.commandSuggestions}
+                      isEmbark={() => this.isEmbark}
+                      updateTab={processName => this.updateTab(processName)} />
+          </CardBody>
+        </Card>
 
         <Card>
           <CardBody>

@@ -4,20 +4,22 @@ import { BlockchainProcessLauncher } from './blockchainProcessLauncher';
 import { BlockchainClient } from './blockchain';
 import { ws, rpcWithEndpoint } from './check.js';
 import DevTxs from "./devtxs";
-const constants = require('embark-core/constants');
+import constants from 'embark-core/constants';
 
 class Geth {
-  constructor(embark, options) {
+  constructor(embark) {
     this.embark = embark;
     this.embarkConfig = embark.config.embarkConfig;
     this.blockchainConfig = embark.config.blockchainConfig;
     this.communicationConfig = embark.config.communicationConfig;
-    this.locale = options.locale;
+    // TODO get options from config instead of options
+    this.locale = embark.config.locale;
     this.logger = embark.logger;
-    this.client = options.client;
-    this.isDev = options.isDev;
+    this.client = embark.client;
     this.events = embark.events;
-    this.plugins = options.plugins;
+    this.plugins = embark.plugins;
+    this.shownNoAccountConfigMsg = false; // flag to ensure "no account config" message is only displayed once to the user
+    this.isDev = (this.blockchainConfig.isDev || this.blockchainConfig.default);
 
     if (!this.shouldInit()) {
       return;
@@ -32,6 +34,28 @@ class Geth {
       launchFn: (readyCb) => {
         this.events.request('processes:register', 'blockchain', {
           launchFn: (cb) => {
+            if (!this.shownNoAccountConfigMsg &&
+              (/rinkeby|testnet|livenet/).test(this.blockchainConfig.networkType) &&
+              !(this.blockchainConfig.accounts && this.blockchainConfig.accounts.find(acc => acc.password)) &&
+              !this.blockchainConfig.isDev && this.embark.env !== 'development' && this.embark.env !== 'test') {
+              this.logger.warn((
+                '\n=== ' + __('Cannot unlock account - account config missing').bold + ' ===\n' +
+                __('Geth is configured to sync to a testnet/livenet and needs to unlock an account ' +
+                  'to allow your dApp to interact with geth, however, the address and password must ' +
+                  'be specified in your blockchain config. Please update your blockchain config with ' +
+                  'a valid address and password: \n') +
+                ` - config/blockchain.js > ${this.embark.env} > account\n\n`.italic +
+                __('Please also make sure the keystore file for the account is located at: ') +
+                '\n - Mac: ' + `~/Library/Ethereum/${this.embark.env}/keystore`.italic +
+                '\n - Linux: ' + `~/.ethereum/${this.embark.env}/keystore`.italic +
+                '\n - Windows: ' + `%APPDATA%\\Ethereum\\${this.embark.env}\\keystore`.italic) +
+                __('\n\nAlternatively, you could change ' +
+                  `config/blockchain.js > ${this.embark.env} > networkType`.italic +
+                  __(' to ') +
+                  '"custom"\n'.italic).yellow
+              );
+              this.shownNoAccountConfigMsg = true;
+            }
             this.startBlockchainNode(cb);
           },
           stopFn: (cb) => {
@@ -42,8 +66,8 @@ class Geth {
           if (err) {
             this.logger.error(`Error launching blockchain process: ${err.message || err}`);
           }
-          this.setupDevTxs();
           readyCb();
+          this.setupDevTxs();
         });
         this.registerServiceCheck();
       },
@@ -88,7 +112,6 @@ class Geth {
     rpcWithEndpoint(this.blockchainConfig.endpoint, (err, version) => this._getNodeState(err, version, cb));
   }
 
-  // TODO: need to get correct port taking into account the proxy
   registerServiceCheck() {
     this.events.request("services:register", 'Ethereum', (cb) => {
       this._doCheck(cb);
@@ -97,7 +120,7 @@ class Geth {
 
   startBlockchainNode(callback) {
     if (this.blockchainConfig.isStandalone) {
-      return BlockchainClient(this.blockchainConfig, {
+      return new BlockchainClient(this.blockchainConfig, {
         clientName: 'geth',
         env: this.embark.env,
         certOptions: this.embark.config.webServerConfig.certOptions,

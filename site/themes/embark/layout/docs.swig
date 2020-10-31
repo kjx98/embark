@@ -22,13 +22,8 @@
         </div>
         <div class="c-guide__body">
           <nav role="navigation">
-            <select id="version-select">
-              {% for version in Object.keys(site.data.versions) %}
-              <option value="{{ version }}">{{ site.data.versions[version].label }}</option>
-              {% endfor %}
-            </select>
             {% for section in Object.keys(site.data.sidebar['docs']) %}
-              <div class="o-distance-{% if !loop.first %}xl{%else%}l{% endif %}">
+              <div class="{% if !loop.first %}o-distance-xl{% endif %}">
                 <h3 class="c-category-title">{{__('sidebar.docs.' + section)}}</h3>
                 <ul class="o-list-bare">
                   {% for guide in Object.keys(site.data.sidebar['docs'][section]) %}
@@ -51,7 +46,7 @@
       </div>
       <div class="o-guided-content__content">
         <p class="c-meta">{{ __('page.last_updated', date(page.updated, 'MMMM Do YYYY')) }}
-          (<a href="https://github.com/embark-framework/embark-site/edit/master/source/{{page.source}}" target="_blank">
+          (<a href="https://github.com/embarklabs/embark/edit/master/site/source/{{page.source}}" target="_blank">
             Improve this guide <svg class="c-icon c-icon--xs"><use xlink:href="{{url_for('../../assets/icons/symbols.svg')}}#icon-pen-write-paper"></use></svg>
           </a>)
         </p>

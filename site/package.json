@@ -4,11 +4,11 @@
   "private": true,
   "license": "MIT",
   "hexo": {
-    "version": "4.0.0"
+    "version": "4.2.0"
   },
   "dependencies": {
     "cheerio": "^0.22.0",
-    "hexo": "4.0.0",
+    "hexo": "4.2.0",
     "hexo-autoprefixer": "^2.0.0",
     "hexo-deployer-git": "^2.1.0",
     "hexo-generator-alias": "^0.1.3",
@@ -23,12 +23,12 @@
     "hexo-server": "^1.0.0",
     "lodash": "^4.17.13",
     "lunr": "^2.3.8",
-    "uuid": "^3.3.3"
+    "uuid": "^7.0.2"
   },
   "devDependencies": {
     "del": "^5.1.0",
-    "eslint": "^6.7.2",
-    "eslint-config-hexo": "^4.0.0",
+    "eslint": "^6.8.0",
+    "eslint-config-hexo": "^4.1.0",
     "gulp": "^4.0.2",
     "gulp-cheerio": "^1.0.0",
     "gulp-clean-css": "^4.2.0",
@@ -39,7 +39,7 @@
     "gulp-rev-replace": "^0.4.3",
     "gulp-uglify": "^3.0.2",
     "gulp-unique-files": "^0.1.2",
-    "gulp-useref": "^4.0.0",
+    "gulp-useref": "^4.0.1",
     "rename": "^1.0.4"
   }
 }

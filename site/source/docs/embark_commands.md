@@ -85,14 +85,6 @@ Option | Description
 `--no-color` | no colors in case it's needed for compatbility purposes
 `--logfile` | `filename` to output logs (default: none)
 
-## eject-build-config
-
-```
-$ embark eject-build-config
-```
-
-Copies Embark's default `webpack.config.js` file into your DApp so that you can customize it. If a file named `webpack.config.js` is present in your top-level DApp directory, Embark will use your webpack config file instead of its own.
-
 ## blockchain
 
 ```
@@ -150,6 +142,16 @@ $ embark reset
 ```
 
 Resets embarks state on this dapp including clearing cache.
+
+## exec
+
+```
+$ embark exec [environment] [file|directory]
+```
+
+Executes a given (migration) script to perform complex after deployment operations.
+
+It's required to specifiy the `environment` in which the script(s) will be executed in. In addition it's possible to specificy a directory in which multiple script live in. Embark will execute them one by one.
 
 ## upload
 

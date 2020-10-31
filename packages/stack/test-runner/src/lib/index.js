@@ -17,6 +17,7 @@ const reports = require('istanbul-reports');
 const Reporter = require('./reporter');
 
 const EMBARK_OPTION = 'embark';
+const GANACHE_CLIENT_VERSION_NAME = "EthereumJS TestRPC";
 
 class TestRunner {
   constructor(embark, options) {
@@ -137,6 +138,7 @@ class TestRunner {
   }
 
   setupGlobalVariables() {
+
     assert.reverts = async function(method, params = {}, message) {
       if (typeof params === 'string') {
         message = params;
@@ -175,11 +177,21 @@ class TestRunner {
       }
     };
 
-    global.assert = assert;
+    global.evmMethod = this.evmMethod.bind(this);
 
+    global.getEvmVersion = async () => {
+      return this.evmMethod('web3_clientVersion');
+    };
+
+    global.assert = assert;
     global.embark = this.embark;
 
     global.increaseTime = async (amount) => {
+      const evmVersion = await global.getEvmVersion();
+
+      if (evmVersion.indexOf(GANACHE_CLIENT_VERSION_NAME) === -1) {
+        this.logger.warn('WARNING: global.increaseTime uses RPC APIs that are only provided by a simulator (Ganache) and might cause a timeout');
+      }
       await this.evmMethod("evm_increaseTime", [Number(amount)]);
       await this.evmMethod("evm_mine");
     };
@@ -187,6 +199,10 @@ class TestRunner {
     // Mines a block and sets block.timestamp accordingly.
     // See https://github.com/trufflesuite/ganache-core/pull/13 for more information
     global.mineAtTimestamp = async (timestamp) => {
+      const evmVersion = await global.getEvmVersion();
+      if (evmVersion.indexOf(GANACHE_CLIENT_VERSION_NAME) === -1) {
+        this.logger.warn('WARNING: global.mineAtTimestamp uses RPC APIs that are only provided by a simulator (Ganache) and might cause a timeout');
+      }
       return this.evmMethod("evm_mine", [parseFloat(timestamp)]);
     };
   }
@@ -284,7 +300,7 @@ class TestRunner {
     let node = options.node;
     if (!this.simOptions.host && (node && node === constants.blockchain.vm)) {
       this.simOptions.type = constants.blockchain.vm;
-      this.simOptions.client = constants.blockchain.vm;
+      this.simOptions.client = constants.blockchain.clients.ganache;
     } else if (this.simOptions.host || (node && node !== constants.blockchain.vm && node !== EMBARK_OPTION)) {
       let options = this.simOptions;
       if (node && node !== constants.blockchain.vm) {
@@ -352,25 +368,29 @@ class TestRunner {
     })();
   }
 
-  evmMethod(method, params = []) {
-    return new Promise(async (resolve, reject) => {
-      const web3 = await this.web3;
-      const sendMethod = (web3.currentProvider.sendAsync) ? web3.currentProvider.sendAsync.bind(web3.currentProvider) : web3.currentProvider.send.bind(web3.currentProvider);
-      sendMethod(
-        {
-          jsonrpc: '2.0',
-          method,
-          params,
-          id: Date.now().toString().substring(9)
-        },
-        (error, res) => {
-          if (error) {
-            return reject(error);
-          }
-          resolve(res.result);
+  async evmMethod(method, params = []) {
+    const web3 = await this.web3;
+    const sendMethod = (web3.currentProvider.sendAsync) ? web3.currentProvider.sendAsync.bind(web3.currentProvider) : web3.currentProvider.send.bind(web3.currentProvider);
+    let resolve, reject;
+    const promise = new Promise((res, rej) => { resolve = res; reject = rej; });
+    sendMethod(
+      {
+        jsonrpc: '2.0',
+        method,
+        params,
+        id: Date.now().toString().substring(9)
+      },
+      (error, res) => {
+        if (error) {
+          return reject(error);
         }
-      );
-    });
+        if (res.error) {
+          return reject(new Error(res.error));
+        }
+        resolve(res.result);
+      }
+    );
+    return promise;
   }
 }
 

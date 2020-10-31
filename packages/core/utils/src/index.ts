@@ -3,9 +3,16 @@ const https = require('follow-redirects').https;
 const shelljs = require('shelljs');
 const clipboardy = require('clipboardy');
 
+import * as Serialize from './serialize';
+export { Serialize };
+import { __ } from 'embark-i18n';
+
 import { canonicalHost } from './host';
+import * as findUp from 'find-up';
+import * as fs from 'fs-extra';
 export { canonicalHost, defaultCorsHost, defaultHost, dockerHostSwap, isDocker } from './host';
 export { downloadFile, findNextPort, getJson, httpGet, httpsGet, httpGetJson, httpsGetJson, pingEndpoint } from './network';
+export { testRpcWithEndpoint, testWsEndpoint } from './check';
 const logUtils = require('./log-utils');
 export const escapeHtml = logUtils.escapeHtml;
 export const normalizeInput = logUtils.normalizeInput;
@@ -27,7 +34,6 @@ export {
   soliditySha3,
   toChecksumAddress
 } from './web3Utils';
-export { getAddressToContract, getTransactionParams } from './transactionUtils';
 import LongRunningProcessTimer from './longRunningProcessTimer';
 export { LongRunningProcessTimer };
 import AccountParser from './accountParser';
@@ -51,13 +57,17 @@ export {
   normalizePath,
   toForwardSlashes
 } from './pathUtils';
-export { setUpEnv } from './env';
+export { setUpEnv, isDebug } from './env';
+
+import {
+  dappPath
+} from './pathUtils';
 
 const { extendZeroAddressShorthand, replaceZeroAddressShorthand } = AddressUtils;
 
 export { compact, last, recursiveMerge, groupBy } from './collections';
 export { prepareForCompilation } from './solidity/remapImports';
-export { File, getExternalContractUrl, Types } from './file';
+export { File, getExternalContractUrl, Types, getAppendLogFileCargo, getCircularReplacer, readAppendedLogs } from './file';
 
 export {
   findMonorepoPackageFromRoot,
@@ -171,10 +181,13 @@ export function toposort(graph) {
 
 export function deconstructUrl(endpoint) {
   const matches = endpoint.match(/(wss?|https?):\/\/([a-zA-Z0-9_.\/-]*):?([0-9]*)?/);
+  if (!matches) {
+    throw new Error(`Couldn't deconstruct blockchain endpoint which needs to be a URL. Got '${endpoint}`);
+  }
   return {
     protocol: matches[1],
     host: matches[2],
-    port: matches[3],
+    port: matches[3] ? parseInt(matches[3], 10) : false,
     type: matches[1] === 'ws' || matches[1] === 'wss' ? 'ws' : 'rpc'
   };
 }
@@ -203,7 +216,11 @@ export function prepareContractsConfig(config) {
       config.contracts[contractName].address = extendZeroAddressShorthand(address);
     }
 
-    if (args && args.length) {
+    if (typeof args === 'function') {
+      config.contracts[contractName].args = args;
+    }
+
+    if (args && Array.isArray(args)) {
       config.contracts[contractName].args = args.map((val) => {
         if (typeof val === "string") {
           return extendZeroAddressShorthand(val);
@@ -297,4 +314,25 @@ export function isConstructor(obj) {
 
 export function isEs6Module(module) {
   return (typeof module === 'function' && isConstructor(module)) || (typeof module === 'object' && typeof module.default === 'function' && module.__esModule);
+}
+
+export function warnIfPackageNotDefinedLocally(packageName, warnFunc, embarkConfig) {
+  const packageIsResolvable = findUp.sync("node_modules/" + packageName, {cwd: dappPath()});
+  if (!packageIsResolvable) {
+    return warnFunc("== WARNING: "  + packageName + " could not be resolved; ensure it is defined in your dapp's package.json dependencies and then run npm or yarn install; in future versions of embark this package should be a local dependency and configured as a plugin");
+  }
+
+  const dappPackage = fs.readJSONSync(dappPath("package.json"));
+  const { dependencies, devDependencies } = dappPackage;
+  if (!((dependencies && dependencies[packageName]) || (devDependencies && devDependencies[packageName]))) {
+    return warnFunc("== WARNING: it seems "  + packageName + " is not defined in your dapp's package.json dependencies; In future versions of embark this package should be a local dependency and configured as a plugin");
+  }
+
+  if (!embarkConfig.plugins || !embarkConfig.plugins[packageName]) {
+    return warnFunc(
+      __("== WARNING: it seems %s is not defined in your Dapp's embark.json plugins;\nIn future versions of Embark, this package should be a local dependency and configured as a plugin", packageName)
+    );
+  }
+
+  return true;
 }

@@ -62,7 +62,7 @@ export class TemplateGenerator {
 
   downloadFailed() {
     console.error('Does the template really exist?'.red);
-    console.error(`Embark's supported templates: https://embark.status.im/templates/`.green);
+    console.error(`Embark's supported templates: https://framework.embarklabs.io/templates/`.green);
     process.exit(1);
   }
 
@@ -159,7 +159,7 @@ export class TemplateGenerator {
             console.log(__('Next steps:').green);
             console.log(('-> ' + ('cd ' + fspath).bold.cyan).green);
             console.log('-> '.green + 'embark run'.bold.cyan);
-            console.log(__('For more info go to http://embark.status.im').green);
+            console.log(__('For more info go to http://framework.embarklabs.io').green);
           }
         }
       );
@@ -178,7 +178,6 @@ export class TemplateGenerator {
       pkgJson.version = '0.0.1';
     }
     if (pkgJson.devDependencies) {
-      delete pkgJson.devDependencies['embark'];
       delete pkgJson.devDependencies['embark-reset'];
       delete pkgJson.devDependencies['npm-run-all'];
       delete pkgJson.devDependencies['rimraf'];
@@ -268,7 +267,7 @@ export class TemplateGenerator {
         embarkVersion = semver(require(embarkPath('package.json')).version);
         templateAndBranch.push(`${embarkVersion.major}.${embarkVersion.minor}`);
       }
-      templateAndBranch[0] = `embark-framework/embark-${templateAndBranch[0]}-template`;
+      templateAndBranch[0] = `embarklabs/embark-${templateAndBranch[0]}-template`;
       hgi = hostedGitInfo.fromUrl(templateAndBranch.join('#'));
       if (fallback) {
         hgi_fallback = hostedGitInfo.fromUrl(templateAndBranch[0]);

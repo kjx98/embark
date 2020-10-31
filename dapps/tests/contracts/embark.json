@@ -5,15 +5,20 @@
   "app": {},
   "buildDir": "build/",
   "config": {
-    "contracts": "contracts.json",
+    "contracts": "contracts.js",
     "storage": false,
     "communication": false,
     "webserver": false,
     "namesystem": "ens.json"
   },
   "versions": {
-    "solc": "0.4.24"
+    "solc": "0.4.26"
   },
   "plugins": {
+    "embark-geth": {},
+    "embark-parity": {},
+    "embark-profiler": {},
+    "embark-graph": {},
+    "embark-basic-pipeline": {}
   }
 }

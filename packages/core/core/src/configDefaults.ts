@@ -1,6 +1,8 @@
 import {recursiveMerge} from "embark-utils";
+import { readJsonSync } from 'fs-extra';
+import { join } from "path";
 
-const constants = require('embark-core/constants');
+const constants = readJsonSync(join(__dirname, '../constants.json'));
 
 export function getBlockchainDefaults(env) {
   const defaults = {
@@ -8,7 +10,7 @@ export function getBlockchainDefaults(env) {
       miningMode: 'dev' // Mode in which the node mines. Options: dev, auto, always, off
     },
     enabled: true,
-    client: constants.blockchain.clients.geth,
+    client: constants.blockchain.clients.ganache,
     proxy: true,
     datadir: `.embark/${env}/datadir`,
     rpcHost: "localhost",
@@ -39,13 +41,14 @@ export function getBlockchainDefaults(env) {
 
 export function getContractDefaults(embarkConfigVersions) {
   const defaultVersions = {
-    solc: "0.5.0"
+    solc: "0.6.1"
   };
   const versions = recursiveMerge(defaultVersions, embarkConfigVersions || {});
 
   return {
     default: {
-      versions: versions,
+      library: "embarkjs",
+      versions,
       dappConnection: [
         "$WEB3",
         "ws://localhost:8546",

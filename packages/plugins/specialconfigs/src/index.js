@@ -1,5 +1,3 @@
-/* global module require */
-
 import {__} from 'embark-i18n';
 const ListConfigs = require('./listConfigs.js');
 const FunctionConfigs = require('./functionConfigs.js');
@@ -21,6 +19,7 @@ class SpecialConfigs {
     this.embark.registerActionForEvent("deployment:contract:deployed", this.doOnDeployAction.bind(this));
     this.embark.registerActionForEvent("deployment:contract:shouldDeploy", this.deployIfAction.bind(this));
     this.embark.registerActionForEvent('deployment:contract:beforeDeploy', this.beforeDeployAction.bind(this));
+    this.embark.registerActionForEvent('deployment:contract:determineArgs', this.determineSmartContractArgs.bind(this));
   }
 
   async executeAddressHandlerForContract(params, cb) {
@@ -42,10 +41,17 @@ class SpecialConfigs {
   }
 
   async beforeDeployAction(params, cb) {
-    if (typeof params.contract.beforeDeploy !== 'function') {
-      return this.listConfigs.beforeDeployAction(params, cb);
+    if (params.contract.beforeDeploy) {
+      return this.functionConfigs.beforeDeployAction(params, cb);
     }
-    return this.functionConfigs.beforeDeployAction(params, cb);
+    cb();
+  }
+
+  async determineSmartContractArgs(params, cb) {
+    if (typeof params.contract.args === 'function') {
+      return this.functionConfigs.determineSmartContractArgs(params, cb);
+    }
+    cb();
   }
 
   async doOnDeployAction(params, cb) {

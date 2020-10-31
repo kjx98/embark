@@ -1,8 +1,10 @@
 /* global ethereum */
 
-import {reduce} from './async';
+import { reduce } from './async';
+import utils from './utils';
 
 let Blockchain = {
+  Contract: Contract,
   list: [],
   done: false,
   err: null
@@ -77,6 +79,10 @@ Blockchain.setProvider = function(providerName, options) {
   let provider = this.Providers[providerName];
 
   if (!provider) {
+    if (providerName === 'web3') {
+      console.log("the embarkjs-web3 package might be missing from your project dependencies");
+    }
+
     throw new Error([
       'Unknown blockchain provider. Make sure to register it first using',
       'EmbarkJS.Blockchain.registerProvider(providerName, providerObject)'
@@ -190,7 +196,7 @@ Blockchain.doConnect = function(connectionList, opts, doneCb) {
           (typeof window !== 'undefined' && window.ethereum && window.ethereum.isMetaMask)) {
           console.warn("%cNote: Embark has detected you are in the development environment and using Metamask, please make sure Metamask is connected to your local node", "font-size: 2em");
           if(opts.blockchainClient === 'parity') {
-            console.warn("%cNote: Parity blocks the connection from browser extensions like Metamask. To resolve this problem, go to https://embark.status.im/docs/blockchain_configuration.html#Using-Parity-and-Metamask", "font-size: 2em");
+            console.warn("%cNote: Parity blocks the connection from browser extensions like Metamask. To resolve this problem, go to https://framework.embarklabs.io/docs/blockchain_configuration.html#Using-Parity-and-Metamask", "font-size: 2em");
           }
         }
       }
@@ -203,17 +209,23 @@ Blockchain.doConnect = function(connectionList, opts, doneCb) {
   });
 };
 
-Blockchain.enableEthereum = function() {
-  if (typeof window !== 'undefined' && window.ethereum) {
-    return ethereum.enable().then((accounts) => {
-      this.blockchainConnector.setProvider(ethereum);
-      this.blockchainConnector.setDefaultAccount(accounts[0]);
-      contracts.forEach(contract => {
-        contract.options.from = this.blockchainConnector.getDefaultAccount();
-      });
-      return accounts;
-    });
+// See https://eips.ethereum.org/EIPS/eip-1102
+Blockchain.enableEthereum = async function() {
+  if (typeof window === 'undefined' || !window.ethereum) {
+    throw new Error('ethereum not available in this browser');
   }
+
+  await ethereum.enable();
+  this.blockchainConnector.setProvider(ethereum);
+
+  const accounts = await this.blockchainConnector.getAccounts();
+  this.blockchainConnector.setDefaultAccount(accounts[0]);
+
+  contracts.forEach(contract => {
+    contract.options.from = this.blockchainConnector.getDefaultAccount();
+  });
+
+  return accounts;
 };
 
 Blockchain.execWhenReady = function(cb) {
@@ -226,14 +238,14 @@ Blockchain.execWhenReady = function(cb) {
   this.list.push(cb);
 };
 
-let Contract = function(options) {
+function Contract(options) {
   var self = this;
   var ContractClass;
 
   this.abi = options.abi || options.abiDefinition;
   this.address = options.address || options.deployedAddress;
   this.gas = options.gas;
-  this.code = '0x' + options.code;
+  this.code = utils.hexPrefix(options.code);
 
   this.blockchainConnector = Blockchain.blockchainConnector;
 
@@ -300,43 +312,51 @@ let Contract = function(options) {
     }
   });
 
+  // Assign helpers too
+  for(const method of ["new", "at", "send", "deployed"]) {
+    // Make sure we don't override original methods here.
+    if (originalMethods.includes(method)) {
+      console.log(method + " is a reserved word and will not be aliased as a helper");
+      continue;
+    }
+
+    ContractClass[method] = Contract.prototype[method].bind(this);
+  }
+
+  this.contractClass = ContractClass;
+
   return ContractClass;
-};
+}
 
-Contract.prototype.deploy = function(args, _options) {
-  var self = this;
-  var contractParams;
-  var options = _options || {};
+Contract.prototype.new = function(args, _options, _txOptions) {
+  const self = this;
+  const options = Object.assign({
+    arguments: args || [],
+    data: this.code
+  }, _options);
 
-  contractParams = args || [];
-
-  contractParams.push({
+  const txOptions = Object.assign({
     from: this.blockchainConnector.getDefaultAccount(),
-    data: this.code,
-    gas: options.gas || 800000
+    gas: this.gas
+  }, _txOptions);
+
+  const contract = this.blockchainConnector.newContract({abi: this.abi});
+
+  this._deployPromise = new Promise((resolve, reject) => {
+    contract.deploy.apply(contract, [options]).send(txOptions).then(instance => {
+      resolve(new Contract({
+        abi: self.abi,
+        code: self.code,
+        address: instance.options.address
+      }));
+
+      // Delete the deploy promise as we don't need to track it anymore.
+      delete self._deployPromise;
+    }).catch(reject);
   });
 
-
-  const contractObject = this.blockchainConnector.newContract({abi: this.abi});
-
-  return new Promise(function (resolve, reject) {
-    contractParams.push(function(err, transaction) {
-      if (err) {
-        reject(err);
-      } else if (transaction.address !== undefined) {
-        resolve(new Contract({
-          abi: self.abi,
-          code: self.code,
-          address: transaction.address
-        }));
-      }
-    });
-
-    contractObject["new"].apply(contractObject, contractParams);
-  });
+  return this._deployPromise;
 };
-
-Contract.prototype.new = Contract.prototype.deploy;
 
 Contract.prototype.at = function(address) {
   return new Contract({abi: this.abi, code: this.code, address: address});
@@ -356,6 +376,13 @@ Contract.prototype.send = function(value, unit, _options) {
   options.value = wei;
 
   return this.blockchainConnector.send(options);
+};
+
+Contract.prototype.deployed = function() {
+  // This API exists just for compatibility reasons, so it works with tools that
+  // don't have their Smart Contracts deployed initially a the time of importing
+  // them, like Embark does.
+  return Promise.resolve(this);
 };
 
 Blockchain.Contract = Contract;

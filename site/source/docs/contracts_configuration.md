@@ -59,6 +59,33 @@ development: {
 ...
 ```
 
+### Calculating constructor parameters lazily
+
+Another way to configure arguments for Smart Contract constructors is to calculate them lazily using an asynchronous function. This is especially useful if the Smart Contract's arguments depend on other runtime dependencies, such as already deployed Smart Contracts. To calculate arguments, all you have to do is define `args` as an (async) function and resolve with either a list of arguments or an object where each member maps to an individual constructor argument:
+
+```
+...
+development: {
+  deploy: {
+    SimpleStorage: {
+      args: async ({ contracts, web3, logger}) => {
+        // do something with `contracts` and `web3` to determine
+        // arguments
+        let someValue = await ...;
+        return [someValue];
+
+        // or
+        return {
+          initialValue: someValue
+        };
+      }
+    }
+  }
+}
+...
+```
+
+
 ### Configuring gas and gas price
 
 Both, `gas` and `gasPrice` can be configured for each Smart Contract. If we don't want to configure that for every single contract, we can also specify `gas: auto` in the environment, like this:
@@ -122,6 +149,26 @@ production: {
     SimpleStorage: {
       deploy: false
     }
+  }
+}
+...
+```
+
+## Defining interfaces
+
+There are scenarios in which certain Smart Contract sources are used for inheritance or as interfaces. While their source has to be compiled,
+we don't actually want to deploy them. To prevent such Smart Contracts from deploying, we can either take advantage of the `deploy: false`
+propery discussed above, or use the more semantic `interfaces` and `libraries` configurations.
+
+Both of them are simple lists of Smart Contract names that should be treated as interfaces and libraries respectively. The following example
+show how the `Ownable` Smart Contract is configured as interface and therefore won't be deployed:
+
+```json
+...
+development:
+  interfaces: ['Ownable'],
+  deploy: {
+    InheritsOwnable: {}
   }
 }
 ...
@@ -314,6 +361,56 @@ deploy: {
 ...
 </code></pre>
 
+## Proxy Contract Support
+
+Proxy smart contracts are powerful tools usually used in more complex Dapps. They can be used for smart contracts that can be upgraded or to alleviate the deploy cost of multiple instances of a contract.
+
+However, interacting with Proxy contracts is usually difficult, because you have to point the Base contract to the address of the Proxy for it to work.
+
+Not anymore! Embark now supports a smart contract configuration named `proxyFor`.
+
+With it, you can specify that a Proxy smart contract is, well, a proxy *for* another one. Here's an example:
+
+```javascript
+deploy: {
+  Proxy: {
+    deploy: false
+  },
+  BaseContract: {
+    args: ["whatever the base contract needs"]
+  },
+  ContractInstance: {
+    instanceOf: "Proxy",
+    proxyFor: "BaseContract",
+    args: ["0x", "$BaseContract"]
+  }
+}
+```
+
+With this configuration, our `ContractInstance` is an `instanceOf` `Proxy` and  a `proxyFor` `BaseContract`.
+This is why we point to `BaseContract` in the `ContractInstance` arguments.
+The arguments themselves depend on the implementations of your `BaseContract` and `Proxy` smart contracts.
+
+Note that you could have used `Proxy` itself as a `proxyFor` `BaseContract`, but it's usually more intuitive to use `instanceOf` and then resolve the smart contract instance with the new name you gave it (`ContractInstance` in this case).
+
+Once the smart contracts are deployed, all you have to do is:
+
+```
+import ContractInstance from 'path/to/artifacts/contracts/ContractInstance';
+```
+
+Here is what it looked **before**:
+
+```Javascript
+import BaseContract from 'path/to/artifacts/contracts/BaseContract';
+import ContractProxy from 'path/to/artifacts/contracts/ContractProxy';
+
+BaseContract.options.address = ContractProxy.options.address;
+// Then  you could actually interact with the BaseContract
+```
+
+Now, no need to import or use `BaseContract`, like above, since `ContractInstance` contains both the ABI of `BaseContract` and `Proxy`.
+
 ## Deployment tracking
 
 Embark's Smart Contract deployment mechanism prevents the deployment of Smart Contracts that have already been deployed. This turns out to be a powerful feature as you don't have to worry about keeping track of it. The way this works is that, by default, Embark creates a file `./.embark/chains.json` in which it stores the name and address of the deployed Smart Contracts. That information is then mapped to the hash of the block in which the Smart Contract have been deployed:
@@ -386,6 +483,25 @@ tracking: 'path/to/some/file'
 
 Having the file referenced above under version control ensures that other users of our project don't redeploy the Smart Contracts on different platforms.
 
+### Skipping bytecode check
+By default, before deploying a contract, Embark will check if the bytecode for the contract already exists on-chain at the address that is tracked by Embark. If the bytecode does not exist, or is different, Embark will deploy the contract for you. We can skip a bytecode check, to ensure that Embark relies on the deployment tracker to determine if the contract has already been deployed or not. 
+
+```
+environment: {
+  deploy: {
+    SimpleStorage: {
+      skipBytecodeCheck: true
+    }
+  }
+},
+```
+
+This becomes useful in cases of private multi-node environments, where we do not want Embark to deploy contracts to the current node when another node on the chain may already have the contract deployed to it. 
+
+More to the point, when using Embark's Quorum plugin in a private multi-node private setup (ie using the [7nodes example](https://github.com/jpmorganchase/quorum-examples/tree/master/examples/7nodes)), we might want to deploy a contract privately between Node 1 and Node 7, for example. In this case, we deploy the contract by connecting Embark to the Node 1 environment we have set up in our blockchain config. Connecting to our Node 7 environment set up in our blockchain config, we should see values for our contracts. However, connecting to other Node environments in our blockchain config (ie Nodes 2 - 6), those contract values should not exist on the node. The only way to ensure that we do not deploy our contracts to Nodes 2 - 6 when they're not meant to exist there, is by setting the `skipBytecodeCheck: true` setting for the contract in the contracts config.
+
+The downside of this, is that if we perform an `embark reset` (effectively deleting our `chains.json`, and therefore losing track of which contracts we've previously deployed), we have no way to check if our chain has already deployed our contract or not. In this case, Embark will deploy the contracts to the current environment regardless.
+
 
 ### Reducing contract size
 
@@ -430,18 +546,7 @@ deploy: {
 ...
 ```
 
-Notice how `dependencies.contracts` gives access to the `Manager` contract instance. This however, is only possible because `Manager` has been defined as dependency of `ERC20` using the `deps` property. If we're using a Node version that doesn't support async/await, the same can be achieved using promises like this (web3 APIs already return promises):
-
-```
-...
-ERC20: {
-  deployIf: (dependencies) => {
-    return dependencies.contracts.Manager.methods.isUpdateApproved().call();
-  },
-  deps: ['Manager']
-},
-...
-```
+Notice how `contracts` gives access to the `Manager` contract instance. This however, is only possible because `Manager` has been defined as dependency of `ERC20` using the `deps` property.
 
 ### `beforeDeploy` hook
 

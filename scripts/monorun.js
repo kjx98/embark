@@ -1,5 +1,3 @@
-/* global process require */
-
 // there seems to be a bug in yarn whereby forwarding arguments with -- like so:
 //   $ yarn monorun [...] -- --foo
 // results in [...] being stripped away; can workaround with:
@@ -46,5 +44,13 @@ if (cliArgs.includes('--scope')) {
 }
 
 const npxCmd = process.platform === 'win32' ? 'npx.cmd': 'npx';
-process.chdir(monorepoRootPath);
-spawn(npxCmd, ['lerna', 'run', ...cliArgs], {stdio: 'inherit'});
+const subp = spawn(npxCmd, [
+  'lerna',
+  'run',
+  ...cliArgs
+], {
+  cwd: monorepoRootPath,
+  stdio: 'inherit'
+});
+
+subp.on('close', code => process.exit(code));

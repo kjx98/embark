@@ -1,9 +1,9 @@
 import { __ } from 'embark-i18n';
 const bip39 = require("bip39");
-const hdkey = require('ethereumjs-wallet/hdkey');
-const ethereumjsWallet = require('ethereumjs-wallet');
+const hdkey = require('@embarklabs/ethereumjs-wallet/hdkey');
+const ethereumjsWallet = require('@embarklabs/ethereumjs-wallet');
 const fs = require('fs');
-import {getHexBalanceFromString} from './web3Utils';
+import {getHexBalanceFromString, toChecksumAddress} from './web3Utils';
 const {utils} = require('web3');
 
 const path = require('path');
@@ -13,7 +13,9 @@ export default class AccountParser {
   static parseAccountsConfig(accountsConfig, web3, dappPath, logger, nodeAccounts) {
     let accounts = [];
     if (!(accountsConfig && accountsConfig.length)) {
-      return nodeAccounts;
+      return nodeAccounts.map(account => {
+        return (typeof account === 'string') ? { address: account } : account;
+      });
     }
     if (accountsConfig && accountsConfig.length) {
       accountsConfig.forEach(accountConfig => {
@@ -31,11 +33,24 @@ export default class AccountParser {
         accounts.push(account);
       });
     }
-    return accounts;
+    // Clean up accounts duplicated
+    return accounts.filter((acct, index) => {
+      const sameAccountIndex = accounts.findIndex((acct2, index2) => {
+        if (index === index2) {
+          return false;
+        }
+        const addr1 = acct.address || acct;
+        const addr2 = acct2.address || acct2;
+        // Two different entries have the same address
+        return toChecksumAddress(addr1) === toChecksumAddress(addr2);
+      });
+      // Only keep the account if there is no duplicate and if there is one, only keep the one an address or the first one in the list
+        return (sameAccountIndex === -1 || (acct.privateKey && (!accounts[sameAccountIndex].privateKey || sameAccountIndex > index)));
+    });
   }
 
   /*eslint complexity: ["error", 30]*/
-  static getAccount(accountConfig, web3, dappPath, logger = console, nodeAccounts) {
+  static getAccount(accountConfig, web3, dappPath, logger = console, nodeAccounts = null) {
     const returnAddress = web3 === false;
     let hexBalance = null;
     if (accountConfig.balance && web3) {
@@ -152,7 +167,7 @@ export default class AccountParser {
       return null;
     }
     logger.error(__('Unsupported account configuration: %s' ,JSON.stringify(accountConfig)));
-    logger.error(__('Check the docs at %s', 'https://embark.status.im/docs/contracts_deployment.html#Using-accounts-in-a-wallet'.underline));
+    logger.error(__('Check the docs at %s', 'https://framework.embarklabs.io/docs/contracts_deployment.html#Using-accounts-in-a-wallet'.underline));
     return ERROR_ACCOUNT;
   }
 }

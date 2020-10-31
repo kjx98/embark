@@ -1,30 +1,23 @@
-import { Callback, Embark, Events } /* supplied by @types/embark in packages/embark-typings */ from "embark";
+import { Callback, Embark, EmbarkEvents } from "embark-core";
 import { __ } from "embark-i18n";
 import Web3 from "web3";
 import RpcModifier from "./rpcModifier";
+import {handleSignRequest} from './utils/signUtils';
 
 export default class EthSignData extends RpcModifier {
-  constructor(embark: Embark, rpcModifierEvents: Events) {
-    super(embark, rpcModifierEvents);
+  constructor(embark: Embark, rpcModifierEvents: EmbarkEvents, public nodeAccounts: string[], public accounts: any[], protected web3: Web3) {
+    super(embark, rpcModifierEvents, nodeAccounts, accounts, web3);
 
     this.embark.registerActionForEvent("blockchain:proxy:request", this.ethSignDataRequest.bind(this));
     this.embark.registerActionForEvent("blockchain:proxy:response", this.ethSignDataResponse.bind(this));
   }
 
   private async ethSignDataRequest(params: any, callback: Callback<any>) {
-    if (params.request.method === "eth_sign") {
-      try {
-        const nodeAccounts = await this.nodeAccounts;
-        const [fromAddr] = params.request.params;
-        if (!nodeAccounts.includes(fromAddr)) {
-          params.sendToNode = false;
-        }
-      } catch (err) {
-        return callback(err);
-      }
+    if (params.request.method !== "eth_sign") {
+      return callback(null, params);
     }
 
-    callback(null, params);
+    handleSignRequest(this.nodeAccounts, params, callback);
   }
 
   private async ethSignDataResponse(params: any, callback: Callback<any>) {
@@ -33,18 +26,20 @@ export default class EthSignData extends RpcModifier {
     }
 
     try {
-      const accounts = await this.accounts;
-      const nodeAccounts = await this.nodeAccounts;
       const [fromAddr, data] = params.request.params;
 
-      if (nodeAccounts.includes(fromAddr)) {
+      const nodeAccount = this.nodeAccounts.find(acc => (
+        Web3.utils.toChecksumAddress(acc) ===
+        Web3.utils.toChecksumAddress(fromAddr)
+      ));
+      if (nodeAccount) {
         return callback(null, params);
       }
 
       this.logger.trace(__(`Modifying blockchain '${params.request.method}' response:`));
       this.logger.trace(__(`Original request/response data: ${JSON.stringify(params)}`));
 
-      const account = accounts.find(acc => (
+      const account = this.accounts.find(acc => (
         Web3.utils.toChecksumAddress(acc.address) ===
           Web3.utils.toChecksumAddress(fromAddr)
       ));

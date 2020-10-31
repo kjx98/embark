@@ -1,15 +1,14 @@
-import { Callback, CompilerPluginObject, Embark, Plugins /* supplied by @types/embark in packages/embark-typings */ } from "embark";
+import { Callback, CompilerPluginObject, Embark, EmbarkPlugins } from "embark-core";
 import { __ } from "embark-i18n";
+import { File, Types, dappPath } from "embark-utils";
 import * as os from "os";
 import * as path from "path";
 import { promisify } from "util";
 
-const { File, Types, dappPath } = require("embark-utils");
-
-class Compiler {
+export default class Compiler {
   private fs: any;
   private logger: any;
-  private plugins: Plugins;
+  private plugins: EmbarkPlugins;
 
   constructor(embark: Embark, options: any) {
     this.fs = embark.fs;
@@ -69,15 +68,15 @@ class Compiler {
   }
 
   private async compileContracts(contractFiles: any[], cb: Callback<any>) {
-    if (!contractFiles.length) {
-      return cb(null, {});
-    }
-
     const compiledObject: { [index: string]: any } = {};
     const compilerOptions = {};
 
     try {
       contractFiles = this.checkContractFiles(await this.runBeforeActions(contractFiles));
+
+      if (!contractFiles.length) {
+        return cb(null, {});
+      }
 
       await Promise.all(
         Object.entries(this.getAvailableCompilers()).map(async ([extension, compilers]: [string, any]) => {
@@ -132,5 +131,3 @@ class Compiler {
     };
   }
 }
-
-module.exports = Compiler;

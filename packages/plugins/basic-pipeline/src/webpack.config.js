@@ -1,5 +1,3 @@
-/* global __dirname module process require */
-
 const fs = require('fs');
 const path = require('path');
 
@@ -54,7 +52,13 @@ const HardSourceWebpackPlugin = requireFromEmbark('hard-source-webpack-plugin');
 
 const embarkAliases = require(path.join(dappPath, '.embark/embark-aliases.json'));
 const embarkAssets = require(path.join(dappPath, '.embark/embark-assets.json'));
-const embarkJson = require(path.join(dappPath, 'embark.json'));
+let embarkJson;
+try {
+  embarkJson = require(path.join(dappPath, '.embark', 'embark.json'));
+} catch (e) {
+  throw new Error(`embark.json not found in ${path.join(dappPath, '.embark')}/`);
+}
+
 const embarkPipeline = require(path.join(dappPath, '.embark/embark-pipeline.json'));
 
 const buildDir = path.join(dappPath, embarkJson.buildDir);

@@ -1,18 +1,23 @@
 import async from "async";
-import { Callback, Embark, Events, Logger } /* supplied by @types/embark in packages/embark-typings */ from "embark";
+import { Callback, Embark, EmbarkEvents, EmbarkPlugins } from "embark-core";
 import { __ } from "embark-i18n";
 import Web3 from "web3";
 const { blockchain: blockchainConstants } = require("embark-core/constants");
 import RpcModifier from "./rpcModifier";
+import cloneDeep from "lodash.clonedeep";
 
 export default class EthSendTransaction extends RpcModifier {
   private signTransactionQueue: any;
   private nonceCache: any = {};
-  constructor(embark: Embark, rpcModifierEvents: Events) {
-    super(embark, rpcModifierEvents);
+  private plugins: EmbarkPlugins;
+  constructor(embark: Embark, rpcModifierEvents: EmbarkEvents, public nodeAccounts: string[], public accounts: any[], protected web3: Web3) {
+    super(embark, rpcModifierEvents, nodeAccounts, accounts, web3);
+
+    this.plugins = embark.config.plugins;
 
     embark.registerActionForEvent("blockchain:proxy:request", this.ethSendTransactionRequest.bind(this));
 
+    // TODO: pull this out in to rpc-manager/utils once https://github.com/embarklabs/embark/pull/2150 is merged.
     // Allow to run transaction in parallel by resolving the nonce manually.
     // For each transaction, resolve the nonce by taking the max of current transaction count and the cache we keep locally.
     // Update the nonce and sign it
@@ -22,20 +27,20 @@ export default class EthSendTransaction extends RpcModifier {
           return callback(err, null);
         }
         payload.nonce = newNonce;
-        const web3 = await this.web3;
-        web3.eth.accounts.signTransaction(payload, account.privateKey, (signingError: any, result: any) => {
-          if (signingError) {
-            return callback(signingError, null);
-          }
+        try {
+          const result = await web3.eth.accounts.signTransaction(payload, account.privateKey);
           callback(null, result.rawTransaction);
-        });
+        } catch (err) {
+          callback(err);
+        }
       });
     }, 1);
   }
 
+  // TODO: pull this out in to rpc-manager/utils once https://github.com/embarklabs/embark/pull/2150 is merged.
   private async getNonce(address: string, callback: Callback<any>) {
     const web3 = await this.web3;
-    web3.eth.getTransactionCount(address, undefined, (error: any, transactionCount: number) => {
+    web3.eth.getTransactionCount(address, (error: any, transactionCount: number) => {
       if (error) {
         return callback(error, null);
       }
@@ -56,8 +61,7 @@ export default class EthSendTransaction extends RpcModifier {
     if (!(params.request.method === blockchainConstants.transactionMethods.eth_sendTransaction)) {
       return callback(null, params);
     }
-    const accounts = await this.accounts;
-    if (!(accounts && accounts.length)) {
+    if (!(this.accounts && this.accounts.length)) {
       return callback(null, params);
     }
 
@@ -66,15 +70,17 @@ export default class EthSendTransaction extends RpcModifier {
 
     try {
       // Check if we have that account in our wallet
-      const account = accounts.find((acc) => Web3.utils.toChecksumAddress(acc.address) === Web3.utils.toChecksumAddress(params.request.params[0].from));
+      const account = this.accounts.find((acc) => Web3.utils.toChecksumAddress(acc.address) === Web3.utils.toChecksumAddress(params.request.params[0].from));
       if (account && account.privateKey) {
         return this.signTransactionQueue.push({ payload: params.request.params[0], account }, (err: any, newPayload: any) => {
           if (err) {
             return callback(err, null);
           }
+          params.originalRequest = cloneDeep(params.request);
           params.request.method = blockchainConstants.transactionMethods.eth_sendRawTransaction;
           params.request.params = [newPayload];
-          callback(err, params);
+          // allow for any mods to eth_sendRawTransaction
+          this.plugins.runActionsForEvent('blockchain:proxy:request', params, callback);
         });
       }
     } catch (err) {

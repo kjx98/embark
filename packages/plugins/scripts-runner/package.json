@@ -1,0 +1,92 @@
+{
+  "name": "embark-scripts-runner",
+  "version": "6.0.0",
+  "description": "Embark Scripts Runner",
+  "repository": {
+    "directory": "packages/plugins/scripts-runner",
+    "type": "git",
+    "url": "https://github.com/embarklabs/embark/"
+  },
+  "author": "Iuri Matias <iuri.matias@gmail.com>",
+  "license": "MIT",
+  "bugs": "https://github.com/embarklabs/embark/issues",
+  "keywords": [],
+  "files": [
+    "dist",
+    "index.js"
+  ],
+  "main": "./index.js",
+  "types": "./dist/index.d.ts",
+  "embark-collective": {
+    "build:node": true,
+    "typecheck": true
+  },
+  "scripts": {
+    "_build": "npm run solo -- build",
+    "_typecheck": "npm run solo -- typecheck",
+    "ci": "npm run qa",
+    "clean": "npm run reset",
+    "lint": "npm-run-all lint:*",
+    "lint:js": "eslint test/",
+    "lint:ts": "tslint -c tslint.json \"src/**/*.ts\"",
+    "qa": "npm-run-all lint _typecheck _build test",
+    "reset": "npx rimraf dist embark-*.tgz package",
+    "solo": "embark-solo",
+    "test": "jest"
+  },
+  "eslintConfig": {
+    "extends": [
+      "../../../.eslintrc.json",
+      "plugin:jest/recommended",
+      "plugin:jest/style"
+    ]
+  },
+  "dependencies": {
+    "@babel/runtime-corejs3": "7.8.4",
+    "async": "3.2.0",
+    "core-js-pure": "3.6.4",
+    "embark-core": "^6.0.0",
+    "embark-i18n": "^6.0.0",
+    "embark-logger": "^6.0.0",
+    "embark-utils": "^6.0.0",
+    "fs-extra": "8.1.0",
+    "web3": "1.2.6",
+    "web3-eth": "1.2.6"
+  },
+  "devDependencies": {
+    "@babel/core": "7.8.6",
+    "@types/node": "^10.5.3",
+    "babel-jest": "24.9.0",
+    "embark-solo": "^6.0.0",
+    "embark-testing": "^6.0.0",
+    "eslint": "6.8.0",
+    "eslint-plugin-jest": "23.8.1",
+    "jest": "25.1.0",
+    "npm-run-all": "4.1.5",
+    "rimraf": "3.0.0",
+    "sinon": "7.4.2",
+    "tmp-promise": "1.1.0",
+    "tslint": "5.20.1",
+    "typescript": "3.7.2"
+  },
+  "engines": {
+    "node": ">=10.17.0",
+    "npm": ">=6.11.3",
+    "yarn": ">=1.19.1"
+  },
+  "jest": {
+    "collectCoverage": true,
+    "testEnvironment": "node",
+    "testMatch": [
+      "**/test/**/*.js"
+    ],
+    "transform": {
+      "\\.(js|ts)$": [
+        "babel-jest",
+        {
+          "rootMode": "upward"
+        }
+      ]
+    }
+  }
+}

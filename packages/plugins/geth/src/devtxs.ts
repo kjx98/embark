@@ -1,11 +1,13 @@
 import { __ } from 'embark-i18n';
-import { Embark, Events, Logger } from "embark";
+import { Embark, EmbarkEvents, Configuration } from "embark-core";
+import { Logger } from "embark-logger";
 import Web3 from "web3";
+import { TransactionReceipt } from "web3-eth";
 import constants from "embark-core/constants.json";
 export default class DevTxs {
   private embark: Embark;
-  private blockchainConfig: any;
-  private events: Events;
+  private blockchainConfig: Configuration["blockchainConfig"];
+  private events: EmbarkEvents;
   private logger: Logger;
   private web3?: Web3;
   private regularTxsInt?: NodeJS.Timeout;
@@ -20,7 +22,7 @@ export default class DevTxs {
     if (!this.shouldStartDevTxs()) {
       return;
     }
-    const provider = await this.events.request2("blockchain:client:provider", "ethereum", this.blockchainConfig.endpoint);
+    const provider = await this.events.request2("blockchain:node:provider", "ethereum");
     this.web3 = new Web3(provider);
 
     const accounts = await this.web3.eth.getAccounts();
@@ -64,7 +66,7 @@ export default class DevTxs {
       matches: ["senddevtx"],
       process: async (_cmd, callback) => {
         this.logger.info(__("Sending a tx from the dev account..."));
-        const receipt = await this.sendTx();
+        const receipt = (await this.sendTx()) as TransactionReceipt;
         callback(null, __("Transaction sent. Tx hash: ") + `\n${JSON.stringify(receipt && receipt.transactionHash)}`);
       }
     });
@@ -74,7 +76,9 @@ export default class DevTxs {
     if (!this.web3) {
       return;
     }
-    return this.web3.eth.sendTransaction({ value: "0", to: this.web3.eth.defaultAccount, from: this.web3.eth.defaultAccount });
+    const to = this.web3.eth.defaultAccount || undefined;
+    const from = this.web3.eth.defaultAccount || undefined;
+    return this.web3.eth.sendTransaction({ value: "0", to, from });
   }
 
   public async startRegularTxs() {

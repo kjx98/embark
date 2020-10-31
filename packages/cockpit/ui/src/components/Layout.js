@@ -204,7 +204,7 @@ class Layout extends React.Component {
       <React.Fragment>
         <NavItem>
           <NavLink id="open-documentation"
-                   href="https://embark.status.im"
+                   href="https://framework.embarklabs.io"
                    title="Documentation"
                    rel="noopener noreferrer"
                    target="_blank">
@@ -213,7 +213,7 @@ class Layout extends React.Component {
         </NavItem>
         <NavItem>
           <NavLink id="open-github"
-                   href="https://github.com/embark-framework"
+                   href="https://github.com/embarklabs"
                    title="Github"
                    rel="noopener noreferrer"
                    target="_blank">

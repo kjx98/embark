@@ -1,3 +1,4 @@
+import 'colors';
 import {__} from 'embark-i18n';
 
 const async = require('async');
@@ -7,6 +8,7 @@ const Web3 = require('web3');
 
 const Reporter = require('./reporter');
 
+const GAS_LIMIT = 8000000;
 const JAVASCRIPT_TEST_MATCH = /^.+\.js$/i;
 const TEST_TIMEOUT = 15000; // 15 seconds in milliseconds
 
@@ -30,6 +32,31 @@ class MochaTestRunner {
     );
   }
 
+  static originalRequire = require('module').prototype.require;
+
+  static requireArtifact(artifactName, compiledContracts) {
+    if (artifactName === 'EmbarkJS') return EmbarkJS;
+
+    const instance = compiledContracts[artifactName];
+
+    if (!instance) {
+      compiledContracts[artifactName] = {};
+    }
+
+    if (!compiledContracts[artifactName].abiDefinition) {
+      return compiledContracts[artifactName];
+    }
+
+    try {
+      return Object.setPrototypeOf(
+        instance,
+        EmbarkJS.Blockchain.Contract(instance)
+      );
+    } catch (e) {
+      return instance;
+    }
+  }
+
   addFile(path) {
     if (!this.match(path)) {
       throw new Error(`invalid JavaScript test path: ${path}`);
@@ -48,7 +75,6 @@ class MochaTestRunner {
     this.options = options;
 
     const Module = require("module");
-    const originalRequire = require("module").prototype.require;
 
     let accounts = [];
     let compiledContracts = {};
@@ -74,6 +100,22 @@ class MochaTestRunner {
               }
               next();
             });
+          },
+
+          (next) => {
+            this.web3.eth.getAccounts((err, accts) => {
+              if (err) {
+                return next(err);
+              }
+              accounts = accts;
+              this.web3.eth.defaultAccount = accts[0];
+              global.web3.eth.defaultAccount = accts[0];
+              next();
+            });
+          },
+          (next) => {
+          // Reset contract config to make sure we don't deploy old contracts or worse, call old onDeploys
+            events.request("contracts:reset", next);
           },
           (next) => {
           // Remove contracts that are not in the configs
@@ -117,16 +159,13 @@ class MochaTestRunner {
               if (!compiledContracts[contract.className]) {
                 compiledContracts[contract.className] = {};
               }
+              instance.options.from = accounts[0];
+              instance.options.code = contract.code;
+              instance.options.gas = GAS_LIMIT;
               Object.setPrototypeOf(compiledContracts[contract.className], instance);
             }
 
             next();
-          },
-          (next) => {
-            this.web3.eth.getAccounts((err, accts) => {
-              accounts = accts;
-              next(err);
-            });
           }
         ], (err) => {
           // Reset the gas accumulator so that we don't show deployment gas on the
@@ -146,6 +185,7 @@ class MochaTestRunner {
     const provider = await this.events.request2("tests:blockchain:start", this.options);
     this.web3 = new Web3(provider);
     accounts = await this.web3.eth.getAccounts();
+
     await events.request2("contracts:reset");
     let contractFiles = await events.request2("config:contractsFiles");
 
@@ -167,37 +207,37 @@ class MochaTestRunner {
 
             this.fs.readFile(file, (err, data) => {
               if (err) {
-                self.logger.error(__('Error reading file %s', file));
-                self.logger.error(err);
+                this.logger.error(__('Error reading file %s', file));
+                this.logger.error(err);
                 seriesCb(null, 1);
               }
               if (data.toString().search(/contract\(|describe\(/) === -1) {
                 return seriesCb(null, 0);
               }
 
+              let testRunner = this;
+
               Module.prototype.require = function(req) {
+                if (["Embark/EmbarkJS", "EmbarkJS"].includes(req)) {
+                  testRunner.logger.warn(
+                    `${__('WARNING!')} ${__('Use')} ${`artifacts.require('EmbarkJS')`.cyan}, ${__('the syntax').yellow} ${`require('${req}')`.cyan} ${__('has been deprecated and will be removed in future versions').yellow}`
+                  );
+                  return MochaTestRunner.requireArtifact("EmbarkJS");
+                }
+
                 const prefix = "Embark/contracts/";
                 if (req.startsWith(prefix)) {
-                  const contractClass = req.replace(prefix, "");
-                  const instance = compiledContracts[contractClass];
-
-                  if (!instance) {
-                    compiledContracts[contractClass] = {};
-                  }
-                  if (!compiledContracts[contractClass].abiDefinition) {
-                    return compiledContracts[contractClass];
-                  }
-                  try {
-                    return Object.setPrototypeOf(instance, EmbarkJS.Blockchain.Contract(instance));
-                  } catch (e) {
-                    return instance;
-                  }
-                }
-                if (req === "Embark/EmbarkJS") {
-                  return EmbarkJS;
+                  const artifactName = req.replace(prefix, "");
+                  testRunner.logger.warn(
+                    `${__('WARNING!')} ${__('Use')} ${`artifacts.require('${artifactName}')`.cyan}, ${__('the syntax').yellow} ${`require('${req}')`.cyan} ${__('has been deprecated and will be removed in future versions').yellow}`
+                  );
+                  return MochaTestRunner.requireArtifact(
+                    artifactName,
+                    compiledContracts
+                  );
                 }
 
-                return originalRequire.apply(this, arguments);
+                return MochaTestRunner.originalRequire.call(this, req);
               };
 
               const mocha = new Mocha();
@@ -212,11 +252,18 @@ class MochaTestRunner {
                 global.config = config;
               });
 
+              global.artifacts = {
+                require: (artifactName) => MochaTestRunner.requireArtifact(
+                  artifactName,
+                  compiledContracts
+                )
+              };
+
               mocha.suite.timeout(TEST_TIMEOUT);
               mocha.addFile(file);
 
               mocha.run((failures) => {
-                Module.prototype.require = originalRequire;
+                Module.prototype.require = MochaTestRunner.originalRequire;
                 seriesCb(null, failures);
               });
             });
@@ -226,10 +273,11 @@ class MochaTestRunner {
         async.series(fns, next);
       }
     ], (err) => {
-      events.emit('tests:finished');
+      this.embark.config.plugins.runActionsForEvent('tests:finished', () => {
+        Module.prototype.require = MochaTestRunner.originalRequire;
+        cb(err);
+      });
 
-      Module.prototype.require = originalRequire;
-      cb(err);
     });
   }
 }

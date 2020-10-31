@@ -6,7 +6,7 @@ const embarkJsUtils = require('embarkjs').Utils;
 import checkContractSize from "./checkContractSize";
 const {ZERO_ADDRESS} = AddressUtils;
 import EthereumAPI from "./api";
-
+import constants from "embark-core/constants";
 
 class EthereumBlockchainClient {
 
@@ -15,8 +15,6 @@ class EthereumBlockchainClient {
     this.events = embark.events;
     this.logger = embark.logger;
     this.fs = embark.fs;
-    this.contractsSubscriptions = [];
-    this.contractsEvents = [];
 
     this.logFile = dappPath(".embark", "contractEvents.json");
 
@@ -26,7 +24,7 @@ class EthereumBlockchainClient {
     this.embark.registerActionForEvent('deployment:contract:beforeDeploy', this.doLinking.bind(this));
     this.embark.registerActionForEvent('deployment:contract:beforeDeploy', checkContractSize.bind(this));
     this.embark.registerActionForEvent('deployment:contract:beforeDeploy', this.determineAccounts.bind(this));
-    this.events.request("blockchain:client:register", "ethereum", this.getClient.bind(this));
+    this.events.request("blockchain:client:register", "ethereum", this.getEthereumClient.bind(this));
     this.events.request("deployment:deployer:register", "ethereum", this.deployer.bind(this));
 
     this.events.on("blockchain:started", () => {
@@ -52,30 +50,45 @@ class EthereumBlockchainClient {
     ethereumApi.registerAPIs();
   }
 
-  getClient() {
-    return {};
+  getEthereumClient(endpoint) {
+    if (endpoint.startsWith('ws')) {
+      return new Web3.providers.WebsocketProvider(endpoint, {
+        headers: { Origin: constants.embarkResourceOrigin }
+      });
+    }
+    const web3 = new Web3(endpoint);
+    return web3.currentProvider;
   }
 
-  async deployer(contract, done) {
+  async deployer(contract, additionalDeployParams, done) {
     try {
       const web3 = await this.web3;
       const [account] = await web3.eth.getAccounts();
       const contractObj = new web3.eth.Contract(contract.abiDefinition, contract.address);
+      contractObj._jsonInterface.find(obj => {
+        if (obj.type === 'constructor') {
+          if (!obj.name) {
+            // Add constructor as the name of the method, because if there is an error, it prints `undefined` otherwise
+            obj.name = 'constructor';
+          }
+          return true;
+        }
+        return false;
+      });
       const code = contract.code.substring(0, 2) === '0x' ? contract.code : "0x" + contract.code;
       const contractObject = contractObj.deploy({arguments: (contract.args || []), data: code});
       if (contract.gas === 'auto' || !contract.gas) {
-        const gasValue = await contractObject.estimateGas();
+        const gasValue = await contractObject.estimateGas({value: 0, from: account});
         const increase_per = 1 + (Math.random() / 10.0);
         contract.gas = Math.floor(gasValue * increase_per);
       }
 
       if (!contract.gasPrice) {
-        const gasPrice = await web3.eth.getGasPrice();
-        contract.gasPrice = contract.gasPrice || gasPrice;
+        contract.gasPrice = await web3.eth.getGasPrice();
       }
 
       embarkJsUtils.secureSend(web3, contractObject, {
-        from: account, gas: contract.gas
+        from: account, gas: contract.gas, ...additionalDeployParams
       }, true, (err, receipt) => {
         if (err) {
           return done(err);
@@ -86,7 +99,7 @@ class EthereumBlockchainClient {
         done(err, receipt);
       }, (hash) => {
         const estimatedCost = contract.gas * contract.gasPrice;
-        contract.log(`${__("Deploying")} ${contract.className.bold.cyan} ${__("with").green} ${contract.gas} ${__("gas at the price of").green} ${contract.gasPrice} ${__("Wei. Estimated cost:").green} ${estimatedCost} ${"Wei".green}  (txHash: ${hash.bold.cyan})`);
+        contract.log(`${__("Deploying")} ${contract.className.bold.cyan} ${__("with").green} ${contract.gas} ${__("gas at the price of").green} ${Web3.utils.fromWei(contract.gasPrice, 'gwei')} ${__("Gwei. Estimated cost:").green} ${Web3.utils.fromWei(estimatedCost.toString())} ${"ether".green}  (txHash: ${hash.bold.cyan})`);
       });
     } catch (e) {
       this.logger.error(__('Error deploying contract %s', contract.className.underline));
@@ -186,7 +199,7 @@ class EthereumBlockchainClient {
         if (Array.isArray(arg)) {
           return checkArgs(arg, nextEachCb);
         }
-        if (arg[0] === "$") {
+        if (arg && arg[0] === "$") {
           return parseArg(arg, nextEachCb);
         }
         nextEachCb(null, arg);

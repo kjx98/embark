@@ -173,14 +173,14 @@ export const processLogs = {
 export const CONTRACT_LOGS = createRequestTypes('CONTRACT_LOGS');
 export const contractLogs = {
   request: () => action(CONTRACT_LOGS[REQUEST]),
-  success: (contractLogs) => action(CONTRACT_LOGS[SUCCESS], {contractLogs}),
+  success: (contractLogs) => action(CONTRACT_LOGS[SUCCESS], {contractLogs: contractLogs ? contractLogs.reverse() : []}),
   failure: (error) => action(CONTRACT_LOGS[FAILURE], {error, name: 'contractLogs'})
 };
 
 export const CONTRACT_EVENTS = createRequestTypes('CONTRACT_EVENTS');
 export const contractEvents = {
   request: () => action(CONTRACT_EVENTS[REQUEST]),
-  success: (contractEvents) => action(CONTRACT_EVENTS[SUCCESS], {contractEvents}),
+  success: (contractEvents) => action(CONTRACT_EVENTS[SUCCESS], {contractEvents: contractEvents ? contractEvents.reverse() : []}),
   failure: (error) => action(CONTRACT_EVENTS[FAILURE], {error, name: 'contractEvents'})
 };
 

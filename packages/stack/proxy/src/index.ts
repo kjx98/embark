@@ -1,14 +1,15 @@
-import { Embark, Events } /* supplied by @types/embark in packages/embark-typings */ from "embark";
+import { Embark, EmbarkEvents } from "embark-core";
 import { __ } from "embark-i18n";
+import { Logger } from "embark-logger";
 import { buildUrl, findNextPort } from "embark-utils";
-import { Logger } from 'embark-logger';
+
 import { Proxy } from "./proxy";
 
 const constants = require("embark-core/constants");
 
 export default class ProxyManager {
   private readonly logger: Logger;
-  private readonly events: Events;
+  private readonly events: EmbarkEvents;
   private wsProxy: any;
   private httpProxy: any;
   private plugins: any;
@@ -17,17 +18,27 @@ export default class ProxyManager {
   private wsPort = 0;
   private ready = false;
   private isWs = false;
-  private isVm = false;
   private _endpoint: string = "";
   private inited: boolean = false;
+  private requestManager: any = null;
 
   constructor(private embark: Embark, options: any) {
     this.logger = embark.logger;
     this.events = embark.events;
     this.plugins = options.plugins;
+    this.requestManager = options.requestManager;
 
     this.host = "localhost";
 
+    if (!this.embark.config.blockchainConfig.proxy) {
+      this.logger.warn(__("The proxy has been disabled -- some Embark features will not work."));
+      this.logger.warn(__("Configured wallet accounts will be ignored and cannot be used in the DApp, and transactions will not be logged."));
+    }
+
+    this.setupEvents();
+  }
+
+  setupEvents() {
     this.events.on("blockchain:started", async (clientName: string) => {
       try {
         await this.setupProxy(clientName);
@@ -39,19 +50,20 @@ export default class ProxyManager {
         this.logger.debug(`Error during proxy setup:\n${error.stack}`);
       }
     });
+
     this.events.on("blockchain:stopped", async (clientName: string, node?: string) => {
       this.ready = false;
       await this.stopProxy();
     });
 
-    if (!this.embark.config.blockchainConfig.proxy) {
-      this.logger.warn(__("The proxy has been disabled -- some Embark features will not work."));
-      this.logger.warn(__("Configured wallet accounts will be ignored and cannot be used in the DApp, and transactions will not be logged."));
-    }
-
     this.events.setCommandHandler("proxy:endpoint:get", async (cb) => {
-      await this.onReady();
       cb(null, (await this.endpoint));
+    });
+    this.events.setCommandHandler("proxy:endpoint:ws:get", async (cb) => {
+      cb(null, buildUrl("ws", this.host, this.wsPort, "ws"));
+    });
+    this.events.setCommandHandler("proxy:endpoint:http:get", async (cb) => {
+      cb(null, buildUrl("http", this.host, this.rpcPort, "rpc"));
     });
   }
 
@@ -64,6 +76,7 @@ export default class ProxyManager {
         this._endpoint = this.embark.config.blockchainConfig.endpoint;
         return this._endpoint;
       }
+      await this.onReady();
       await this.init();
       // TODO Check if the proxy can support HTTPS, though it probably doesn't matter since it's local
       if (this.isWs) {
@@ -91,10 +104,15 @@ export default class ProxyManager {
       return;
     }
     this.inited = true;
-
-    let port = this.embark.config.blockchainConfig.rpcPort;
-    if (!port && port !== 0) {
-      port = 8545;
+    const rpcConfigPort = this.embark.config.blockchainConfig.rpcPort;
+    let port: number = 0;
+    try {
+      port = typeof rpcConfigPort === "string" ? parseInt(rpcConfigPort, 10) : rpcConfigPort;
+      if (!port && port !== 0) {
+        port = 8545;
+      }
+    } catch (err) {
+      this.logger.error(`Blockchain config 'rpcPort' contains an invalid value: '${rpcConfigPort}'`);
     }
 
     // setup ports
@@ -103,9 +121,8 @@ export default class ProxyManager {
     this.rpcPort = rpcPort;
     this.wsPort = wsPort;
 
-    // setup proxy details
-    this.isVm = this.embark.config.blockchainConfig.client === constants.blockchain.vm;
-    this.isWs = this.isVm || (/wss?/).test(this.embark.config.blockchainConfig.endpoint);
+    // setup proxy details - default to WS if no endpoint
+    this.isWs = this.embark.config.blockchainConfig.endpoint ? (/wss?/).test(this.embark.config.blockchainConfig.endpoint) : true;
   }
 
   private async setupProxy(clientName: string) {
@@ -120,45 +137,41 @@ export default class ProxyManager {
     const endpoint = this.embark.config.blockchainConfig.endpoint;
 
     // HTTP
-    if (!this.isVm) {
-      this.httpProxy = await new Proxy({
-        endpoint,
-        events: this.events,
-        isWs: false,
-        logger: this.logger,
-        plugins: this.plugins,
-        isVm: this.isVm
-      })
-        .serve(
-          this.host,
-          this.rpcPort,
-        );
-      this.logger.info(`HTTP Proxy for node endpoint ${endpoint} listening on ${buildUrl("http", this.host, this.rpcPort, "rpc")}`);
-    }
+    this.httpProxy = await new Proxy({
+      events: this.events,
+      isWs: false,
+      logger: this.logger,
+      plugins: this.plugins,
+      requestManager: this.requestManager
+    });
+    await this.httpProxy.serve(this.host, this.rpcPort);
+    this.logger.info(`HTTP Proxy for node endpoint ${endpoint} listening on ${buildUrl("http", this.host, this.rpcPort, "rpc")}`);
+
     if (this.isWs) {
       this.wsProxy = await new Proxy({
-        endpoint,
         events: this.events,
         isWs: true,
         logger: this.logger,
         plugins: this.plugins,
-        isVm: this.isVm
-      })
-        .serve(
-          this.host,
-          this.wsPort,
-        );
-      this.logger.info(`WS Proxy for node endpoint ${this.isVm ? 'vm' : endpoint} listening on ${buildUrl("ws", this.host, this.wsPort, "ws")}`);
+        requestManager: this.requestManager
+      });
+
+      await this.wsProxy.serve(this.host, this.wsPort);
+      this.logger.info(`WS Proxy for node endpoint ${endpoint} listening on ${buildUrl("ws", this.host, this.wsPort, "ws")}`);
     }
   }
+
   private stopProxy() {
+    const promises: any[] = [];
     if (this.wsProxy) {
-      this.wsProxy.stop();
+      promises.push(new Promise(resolve => this.wsProxy.stop(resolve)));
       this.wsProxy = null;
     }
     if (this.httpProxy) {
-      this.httpProxy.stop();
+      promises.push(new Promise(resolve => this.httpProxy.stop(resolve)));
       this.httpProxy = null;
     }
+
+    return promises.length ? Promise.all(promises) : Promise.resolve();
   }
 }

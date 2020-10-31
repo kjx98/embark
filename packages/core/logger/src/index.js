@@ -1,73 +1,14 @@
+const async = require('async');
 require('colors');
-const fs = require('fs');
+const fs = require('fs-extra');
 const date = require('date-and-time');
-const { escapeHtml } = require('embark-utils');
+const { escapeHtml } = require('./utils');
 const util = require('util');
 
 const DATE_FORMAT = 'YYYY-MM-DD HH:mm:ss:SSS';
-const LOG_REGEX = new RegExp(/\[(\d\d\d\d-\d\d-\d\d \d\d:\d\d:\d\d:\d\d\d)\] (?:\[(\w*)\]:?)?\s?\s?(.*)/gmi);
+const DELIM = '  ';
 
-export class Logger {
-  constructor(options) {
-    this.events = options.events || {emit: function(){}};
-    this.logLevels = Object.keys(Logger.logLevels);
-    this.logLevel = options.logLevel || 'info';
-    this._logFunction = options.logFunction || console.log;
-    this.logFunction = function() {
-      const args = Array.from(arguments);
-      const color = args[args.length - 1];
-      args.splice(args.length - 1, 1);
-      this._logFunction(...args.filter(arg => arg !== undefined && arg !== null).map(arg => {
-        if (color) {
-          return typeof arg === 'object' ? util.inspect(arg, 2)[color] : arg[color];
-        }
-        return typeof arg === 'object' ? util.inspect(arg, 2) : arg;
-      }));
-    };
-    this.logFile = options.logFile;
-    this.context = options.context;
-  }
-
-  /**
-   * Parses the logFile, returning an array of JSON objects containing the
-   * log messages.
-   * @param {Number} limit specifies how many log messages to return from the
-   *  end of the log file
-   * @returns {Array} array containing
-   *  - msg: the log message
-   *  - logLevel: log level (ie 'info', 'debug')
-   *  - name: process name (always "embark")
-   *  - timestamp: timestamp of log message (milliseconds since 1/1/1970)
-   */
-  parseLogFile(limit) {
-    let matches;
-    let logs = [];
-    const logFile = fs.readFileSync(this.logFile, 'utf8');
-    while ((matches = LOG_REGEX.exec(logFile)) !== null) {
-     // This is necessary to avoid infinite loops with zero-width matches
-     if (matches.index === LOG_REGEX.lastIndex) {
-       LOG_REGEX.lastIndex++;
-     }
-
-     if (matches && matches.length) {
-       logs.push({
-         msg: [matches[3]],
-         logLevel: matches[2],
-         name: 'embark',
-         timestamp: date.parse(matches[1], DATE_FORMAT).getTime()
-       });
-     }
-    }
-
-    // if 'limit' is specified, get log lines from the end of the log file
-    if(limit && limit > 0 && logs.length > limit){
-      logs.slice(limit * -1);
-    }
-    return logs;
-  }
-}
-
-Logger.logLevels = {
+export const LogLevels = {
   error: 'error',
   warn: 'warn',
   info: 'info',
@@ -75,95 +16,198 @@ Logger.logLevels = {
   trace: 'trace'
 };
 
-Logger.prototype.registerAPICall = function (plugins) {
-  const self = this;
+export class Logger {
+  constructor(options) {
+    this.events = options.events || {emit: function(){}};
+    this.logLevel = options.logLevel || 'info';
+    this._logFunction = options.logFunction || console.log;
+    this.fs = options.fs || fs;
 
-  let plugin = plugins.createPlugin('dashboard', {});
-  plugin.registerAPICall(
-    'ws',
-    '/embark-api/logs',
-    (ws, _req) => {
-      self.events.on("log", function (logLevel, logMsg) {
-        logMsg = escapeHtml(logMsg);
-        ws.send(JSON.stringify({msg: logMsg, msg_clear: logMsg.stripColors, logLevel: logLevel}), () => {});
-      });
+    this.logFunction = function(args, color) {
+      args  = Array.isArray(args) ? args : [args];
+      this._logFunction(...(args.filter(arg => arg ?? false).map(arg => {
+        if (typeof arg === 'object') arg = util.inspect(arg, 2);
+        return color ? arg[color] : arg;
+      })));
+    };
+
+    this.logFile = options.logFile;
+    if (this.logFile) {
+      this.fs.ensureFileSync(this.logFile);
     }
-  );
-};
 
-Logger.prototype.writeToFile = function (_txt) {
-  if (!this.logFile) {
-    return;
+    const isDebugOrTrace = ['debug', 'trace'].includes(this.logLevel);
+    this.isDebugOrTrace = isDebugOrTrace;
+
+    const noop = () => {};
+    this.writeToFile = async.cargo((tasks, callback = noop) => {
+      if (!this.logFile) {
+        return callback();
+      }
+      let logs = '';
+      tasks.forEach(task => {
+        let message = [].concat(task.args).join(' ').trim();
+        if (!message) return;
+        const dts = `[${date.format(new Date(), DATE_FORMAT)}]`;
+        message = message.replace(/\s+/g, ' ');
+        let origin = '';
+        if (isDebugOrTrace) origin = `${DELIM}${task.origin.match(/^at\s+.*(\(.*\))/)[1] || '(unknown)'}`;
+        const prefix = task.prefix;
+        logs += `${dts}${DELIM}${prefix}${DELIM}${message}${origin}\n`;
+      });
+
+      if (!logs) {
+        callback();
+      }
+
+      this.fs.appendFile(this.logFile, logs.stripColors, err => {
+        if (err) {
+          this.logFunction(`There was an error writing to the log file: ${err}`, 'red');
+          return callback(err);
+        }
+        callback();
+      });
+    });
   }
 
-  let origin = "[" + ((new Error().stack).split("at ")[3]).trim() + "]";
-
-  const formattedDate = [`[${date.format(new Date(), DATE_FORMAT)}]`]; // adds a timestamp to the logs in the logFile
-  fs.appendFileSync(this.logFile, "\n" + formattedDate.concat(origin, Array.from(arguments)).join(' '));
-};
-
-Logger.prototype.error = function () {
-  if (!arguments.length || !(this.shouldLog('error'))) {
-    return;
+  registerAPICall(plugins) {
+    let plugin = plugins.createPlugin('logger', {});
+    plugin.registerAPICall(
+      'ws',
+      '/embark-api/logs',
+      (ws, _req) => {
+        this.events.on("log", (logLevel, logMsg) => {
+          logMsg = escapeHtml(logMsg);
+          ws.send(JSON.stringify({msg: logMsg, msg_clear: logMsg.stripColors, logLevel: logLevel}), () => {});
+        });
+      }
+    );
   }
-  this.events.emit("log", "error", ...arguments);
-  this.logFunction(...Array.from(arguments), 'red');
-  this.writeToFile("[error]: ", ...arguments);
-};
 
-Logger.prototype.warn = function () {
-  if (!arguments.length || !(this.shouldLog('warn'))) {
-    return;
+  error(...args) {
+    if (!args.length || !(this.shouldLog('error'))) {
+      return;
+    }
+
+    this.events.emit("log", "error", args);
+    this.logFunction(args, 'red');
+
+    let origin;
+    if (this.isDebugOrTrace) {
+      try {
+        const stack = new Error().stack;
+        origin = stack.split('\n')[2].trim();
+      // eslint-disable-next-line no-empty
+      } catch (e) {}
+    }
+    this.writeToFile.push({ args, origin, prefix: "[error]" });
   }
-  this.events.emit("log", "warn", ...arguments);
-  this.logFunction(...Array.from(arguments), 'yellow');
-  this.writeToFile("[warning]: ", ...arguments);
-};
 
-Logger.prototype.info = function () {
-  if (!arguments.length || !(this.shouldLog('info'))) {
-    return;
+  warn(...args) {
+    if (!args.length || !(this.shouldLog('warn'))) {
+      return;
+    }
+
+    this.events.emit("log", "warn", args);
+    this.logFunction(args, 'yellow');
+
+    let origin;
+    if (this.isDebugOrTrace) {
+      try {
+        const stack = new Error().stack;
+        origin = stack.split('\n')[2].trim();
+      // eslint-disable-next-line no-empty
+      } catch (e) {}
+    }
+    this.writeToFile.push({ args, origin, prefix: "[warn]" });
   }
-  this.events.emit("log", "info", ...arguments);
-  this.logFunction(...Array.from(arguments), 'green');
-  this.writeToFile("[info]: ", ...arguments);
-};
 
-Logger.prototype.consoleOnly = function () {
-  if (!arguments.length || !(this.shouldLog('info'))) {
-    return;
+  info(...args) {
+    if (!args.length || !(this.shouldLog('info'))) {
+      return;
+    }
+
+    this.events.emit("log", "info", args);
+    this.logFunction(args, 'green');
+
+    let origin;
+    if (this.isDebugOrTrace) {
+      try {
+        const stack = new Error().stack;
+        origin = stack.split('\n')[2].trim();
+      // eslint-disable-next-line no-empty
+      } catch (e) {}
+    }
+    this.writeToFile.push({ args, origin, prefix: "[info]" });
   }
-  this.logFunction(...Array.from(arguments), 'green');
-  this.writeToFile("[consoleOnly]: ", ...arguments);
-};
 
-Logger.prototype.debug = function () {
-  if (!arguments.length || !(this.shouldLog('debug'))) {
-    return;
+  consoleOnly(...args) {
+    if (!args.length || !(this.shouldLog('info'))) {
+      return;
+    }
+
+    this.logFunction(args, 'green');
+
+    let origin;
+    if (this.isDebugOrTrace) {
+      try {
+        const stack = new Error().stack;
+        origin = stack.split('\n')[2].trim();
+      // eslint-disable-next-line no-empty
+      } catch (e) {}
+    }
+    this.writeToFile.push({ args, origin, prefix: "[consoleOnly]" });
   }
-  this.events.emit("log", "debug", ...arguments);
-  this.logFunction(...arguments, null);
-  this.writeToFile("[debug]: ", ...arguments);
-};
 
-Logger.prototype.trace = function () {
-  if (!arguments.length || !(this.shouldLog('trace'))) {
-    return;
+  debug(...args) {
+    if (!args.length || !(this.shouldLog('debug'))) {
+      return;
+    }
+
+    this.events.emit("log", "debug", args);
+    this.logFunction(args, null);
+
+    let origin;
+    if (this.isDebugOrTrace) {
+      try {
+        const stack = new Error().stack;
+        origin = stack.split('\n')[2].trim();
+      // eslint-disable-next-line no-empty
+      } catch (e) {}
+    }
+    this.writeToFile.push({ args, origin, prefix: "[debug]" });
   }
-  this.events.emit("log", "trace", ...arguments);
-  this.logFunction(...arguments, null);
-  this.writeToFile("[trace]: ", ...arguments);
-};
 
-Logger.prototype.dir = function (txt) {
-  if (!txt || !(this.shouldLog('info'))) {
-    return;
+  trace(...args) {
+    if (!args.length || !(this.shouldLog('trace'))) {
+      return;
+    }
+
+    this.events.emit("log", "trace", args);
+    this.logFunction(args, null);
+
+    let origin;
+    if (this.isDebugOrTrace) {
+      try {
+        const stack = new Error().stack;
+        origin = stack.split('\n')[2].trim();
+      // eslint-disable-next-line no-empty
+      } catch (e) {}
+    }
+    this.writeToFile.push({ args, origin, prefix: "[trace]" });
   }
-  this.events.emit("log", "dir", txt);
-  this.logFunction(txt, null);
-  this.writeToFile("[dir]: ", ...arguments);
-};
 
-Logger.prototype.shouldLog = function (level) {
-  return (this.logLevels.indexOf(level) <= this.logLevels.indexOf(this.logLevel));
-};
+  dir(obj) {
+    if (!obj || !(this.shouldLog('info'))) {
+      return;
+    }
+
+    this.events.emit("log", "dir", obj);
+    this.logFunction(obj, null);
+  }
+
+  shouldLog(level) {
+    const logLevels = Object.keys(LogLevels);
+    return (logLevels.indexOf(level) <= logLevels.indexOf(this.logLevel));
+  }
+}

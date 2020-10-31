@@ -1,11 +1,11 @@
-import { Callback, Embark, Events } /* supplied by @types/embark in packages/embark-typings */ from "embark";
+import { Callback, Embark, EmbarkEvents } from "embark-core";
 import Web3 from "web3";
 const { blockchain: blockchainConstants } = require("embark-core/constants");
 import { __ } from "embark-i18n";
 import RpcModifier from "./rpcModifier";
 export default class PersonalNewAccount extends RpcModifier {
-  constructor(embark: Embark, rpcModifierEvents: Events) {
-    super(embark, rpcModifierEvents);
+  constructor(embark: Embark, rpcModifierEvents: EmbarkEvents, public nodeAccounts: string[], public accounts: any[], protected web3: Web3) {
+    super(embark, rpcModifierEvents, nodeAccounts, accounts, web3);
 
     embark.registerActionForEvent("blockchain:proxy:response", this.personalNewAccountResponse.bind(this));
   }
@@ -16,7 +16,7 @@ export default class PersonalNewAccount extends RpcModifier {
     }
 
     // emit event so tx modifiers can refresh accounts
-    await this.rpcModifierEvents.request2("nodeAccounts:added", params.response.result);
+    await this.rpcModifierEvents.request2("nodeAccounts:updated");
 
     callback(null, params);
   }

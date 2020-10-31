@@ -3,21 +3,20 @@ import {BlockchainClient} from "./blockchain";
 const {normalizeInput} = require('embark-utils');
 import {BlockchainProcessLauncher} from './blockchainProcessLauncher';
 import {ws, rpcWithEndpoint} from './check.js';
-const constants = require('embark-core/constants');
+import constants from 'embark-core/constants';
 
 class Parity {
 
-  constructor(embark, options) {
+  constructor(embark) {
     this.embark = embark;
     this.embarkConfig = embark.config.embarkConfig;
     this.blockchainConfig = embark.config.blockchainConfig;
-    this.locale = options.locale;
+    // TODO get options from config instead of options
+    this.locale = embark.config.locale;
     this.logger = embark.logger;
-    this.client = options.client;
-    this.isDev = options.isDev;
+    this.client = embark.client;
     this.events = embark.events;
-    this.plugins = options.plugins;
-    // let plugin = this.plugins.createPlugin('gethplugin', {});
+    this.isDev = (this.blockchainConfig.isDev || this.blockchainConfig.default);
 
     if (!this.shouldInit()) {
       return;
@@ -83,7 +82,7 @@ class Parity {
 
   startBlockchainNode(callback) {
     if (this.blockchainConfig.isStandalone) {
-      return BlockchainClient(this.blockchainConfig, {
+      return new BlockchainClient(this.blockchainConfig, {
         clientName: 'parity',
         env: this.embark.env,
         certOptions: this.embark.config.webServerConfig.certOptions,
